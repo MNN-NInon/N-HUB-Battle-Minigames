@@ -62,6 +62,9 @@ local _raw = {
 	SpoofRange      = 3,
 	AutoSkill       = false,
 	SkillDelay      = 10,
+	KillAura        = false,
+	KillAuraRange   = 20,
+	KillAuraRate    = 3,
 }
 
 local function EnsureFolder()
@@ -70,27 +73,41 @@ local function EnsureFolder()
 	end
 end
 
+local isSaving = false
 local function SaveConfig()
-	pcall(function()
-		EnsureFolder()
-		writefile(ConfigPath, HttpService:JSONEncode(_raw))
+	if isSaving then return end
+	isSaving = true
+	task.defer(function()
+		local ok, err = pcall(function()
+			EnsureFolder()
+			writefile(ConfigPath, HttpService:JSONEncode(_raw))
+		end)
+		if not ok then warn("[N-HUB] SaveConfig failed: "..tostring(err)) end
+		isSaving = false
 	end)
 end
 
+-- โหลดก่อน Proxy ถูกสร้าง → _raw มีค่าถูกต้องก่อน UI อ่าน
 local function LoadConfig()
-	pcall(function()
+	local ok, err = pcall(function()
 		EnsureFolder()
 		if isfile(ConfigPath) then
-			local decoded = HttpService:JSONDecode(readfile(ConfigPath))
+			local data = readfile(ConfigPath)
+			print("[N-HUB] Raw file: "..tostring(data):sub(1,100))
+			local decoded = HttpService:JSONDecode(data)
 			for k, v in pairs(decoded) do
-				if _raw[k] ~= nil then
-					_raw[k] = v
-				end
+				_raw[k] = v
 			end
-			print("[N-HUB] Config loaded ✅")
+			print("[N-HUB] Config loaded ✅ WalkSpeed="..tostring(_raw.WalkSpeed))
+		else
+			print("[N-HUB] No config file found at: "..ConfigPath)
 		end
 	end)
+	if not ok then warn("[N-HUB] LoadConfig failed: "..tostring(err)) end
 end
+
+-- โหลดก่อนสร้าง Proxy และ UI ทั้งหมด
+LoadConfig()
 
 -- Proxy: ทุกครั้งที่ Config.xxx = yyy → SaveConfig อัตโนมัติ
 local Config = setmetatable({}, {
@@ -98,21 +115,17 @@ local Config = setmetatable({}, {
 		return _raw[k]
 	end,
 	__newindex = function(_, k, v)
-		if _raw[k] ~= v then
-			_raw[k] = v
-			SaveConfig()  -- auto save ทันที
-		end
+		_raw[k] = v
+		SaveConfig()  -- auto save ทันที ไม่เช็ค ~= เพื่อไม่พลาด
 	end,
 })
 
 -- Auto save ทุก 60 วินาที (สำรอง)
 task.spawn(function()
 	while task.wait(60) do
+		SaveConfig()
 	end
 end)
-
--- โหลดตอนเริ่ม
-LoadConfig()
 
 -- =====================================================
 -- Character reference updater
@@ -350,6 +363,35 @@ end
 Players.PlayerAdded:Connect(function(plr)
 	if plr ~= LocalPlayer then CreateESP(plr) end
 end)
+
+-- =====================================================
+-- ESP TAB
+-- =====================================================
+
+local ESPTab = Window:CreateTab("ESP", 4483362458)
+
+ESPTab:CreateToggle({
+	Name = "ESP",
+	CurrentValue = Config.ESPEnabled,
+	Callback = function(v)
+		ESPEnabled = v
+		Config.ESPEnabled = v
+		-- ซ่อน/แสดง drawing ทันที
+		if not v then
+			for _, obj in pairs(ESPObjects) do
+				if obj.box   then obj.box.Visible   = false end
+				if obj.name  then obj.name.Visible  = false end
+				if obj.hpBack then obj.hpBack.Visible = false end
+				if obj.hpBar  then obj.hpBar.Visible  = false end
+			end
+		end
+		Rayfield:Notify({
+			Title = "ESP",
+			Content = v and "เปิดแล้ว 🟢" or "ปิดแล้ว 🔴",
+			Duration = 2
+		})
+	end
+})
 
 -- =====================================================
 -- COMBAT TAB
@@ -1064,6 +1106,12 @@ local function ApplyConfig(char)
 	autoSkill  = Config.AutoSkill or false
 	skillDelay = Config.SkillDelay or 10
 	if autoSkill then StartAutoSkill() end
+
+	-- Kill Aura
+	killAura      = Config.KillAura or false
+	killAuraRange = Config.KillAuraRange or 20
+	killAuraRate  = (Config.KillAuraRate or 3) / 20
+	if killAura then StartKillAura() end
 end
 
 -- Apply ตอนเริ่ม
