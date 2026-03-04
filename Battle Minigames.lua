@@ -231,8 +231,8 @@ RunService.Stepped:Connect(function()
 end)
 
 -- =====================================================
--- ESP V3.5 PRO
--- Team Color • Health Bar • Box • Respawn Safe
+-- ESP V3.6 FIXED
+-- Team Detect Improved • Smaller UI • Clean
 -- =====================================================
 
 local VisualTab = Window:CreateTab("Visual", 4483362458)
@@ -240,7 +240,25 @@ local VisualTab = Window:CreateTab("Visual", 4483362458)
 local espEnabled = false
 local espConnections = {}
 
--- ===== ลบ ESP =====
+-- ===== TEAM CHECK (หลายระบบ) =====
+local function isEnemy(player)
+    if player == LocalPlayer then return false end
+
+    -- เช็ค Team ปกติ
+    if LocalPlayer.Team and player.Team then
+        return player.Team ~= LocalPlayer.Team
+    end
+
+    -- เช็ค TeamColor
+    if LocalPlayer.TeamColor and player.TeamColor then
+        return player.TeamColor ~= LocalPlayer.TeamColor
+    end
+
+    -- ถ้าเกมไม่มีระบบทีมจริง
+    return true
+end
+
+-- ===== REMOVE =====
 local function removeESP(player)
     if player.Character then
         local h = player.Character:FindFirstChild("NHubHighlight")
@@ -259,15 +277,7 @@ local function removeESP(player)
     end
 end
 
--- ===== ตรวจสอบทีม =====
-local function isEnemy(player)
-    if not LocalPlayer.Team or not player.Team then
-        return true
-    end
-    return player.Team ~= LocalPlayer.Team
-end
-
--- ===== สร้าง ESP =====
+-- ===== CREATE =====
 local function createESP(player)
     if player == LocalPlayer then return end
     if not player.Character then return end
@@ -281,49 +291,53 @@ local function createESP(player)
 
     local enemy = isEnemy(player)
 
-    -- ===== BOX (Highlight) =====
+    local teamColor = enemy
+        and Color3.fromRGB(255,0,0)
+        or Color3.fromRGB(0,150,255)
+
+    -- BOX
     local highlight = Instance.new("Highlight")
     highlight.Name = "NHubHighlight"
-    highlight.FillTransparency = 0.7
+    highlight.FillTransparency = 0.8
     highlight.OutlineTransparency = 0
-    highlight.FillColor = enemy and Color3.fromRGB(255,0,0) or Color3.fromRGB(0,150,255)
-    highlight.OutlineColor = highlight.FillColor
+    highlight.FillColor = teamColor
+    highlight.OutlineColor = teamColor
     highlight.Parent = char
 
-    -- ===== Billboard =====
+    -- BILLBOARD (เล็กลง)
     local bb = Instance.new("BillboardGui")
     bb.Name = "NHubBillboard"
-    bb.Size = UDim2.new(0,200,0,60)
-    bb.StudsOffset = Vector3.new(0,3,0)
+    bb.Size = UDim2.new(0,140,0,40)
+    bb.StudsOffset = Vector3.new(0,2.5,0)
     bb.AlwaysOnTop = true
     bb.Parent = hrp
 
-    -- Name + Distance
+    -- NAME
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Size = UDim2.new(1,0,0.6,0)
     nameLabel.BackgroundTransparency = 1
-    nameLabel.TextScaled = true
-    nameLabel.TextStrokeTransparency = 0
+    nameLabel.TextScaled = false
+    nameLabel.TextSize = 14
     nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextColor3 = highlight.FillColor
+    nameLabel.TextStrokeTransparency = 0.3
+    nameLabel.TextColor3 = teamColor
     nameLabel.Parent = bb
 
-    -- Health Bar BG
+    -- HEALTH BG
     local healthBG = Instance.new("Frame")
-    healthBG.Size = UDim2.new(1,0,0.25,0)
-    healthBG.Position = UDim2.new(0,0,0.65,0)
+    healthBG.Size = UDim2.new(1,0,0.2,0)
+    healthBG.Position = UDim2.new(0,0,0.7,0)
     healthBG.BackgroundColor3 = Color3.fromRGB(40,40,40)
     healthBG.BorderSizePixel = 0
     healthBG.Parent = bb
 
-    -- Health Bar Fill
+    -- HEALTH FILL
     local healthFill = Instance.new("Frame")
     healthFill.Size = UDim2.new(1,0,1,0)
-    healthFill.BackgroundColor3 = Color3.fromRGB(0,255,0)
     healthFill.BorderSizePixel = 0
     healthFill.Parent = healthBG
 
-    -- ===== อัปเดตเรียลไทม์ =====
+    -- UPDATE LOOP
     espConnections[player] = RunService.RenderStepped:Connect(function()
         if not espEnabled then return end
         if not player.Character or not Character then return end
@@ -336,14 +350,12 @@ local function createESP(player)
             local dist = (myHRP.Position - targetHRP.Position).Magnitude
             nameLabel.Text = player.Name.." | "..math.floor(dist).."m"
 
-            -- Health %
-            local healthPercent = targetHum.Health / targetHum.MaxHealth
-            healthFill.Size = UDim2.new(healthPercent,0,1,0)
+            local hpPercent = targetHum.Health / targetHum.MaxHealth
+            healthFill.Size = UDim2.new(hpPercent,0,1,0)
 
-            -- เปลี่ยนสีเลือดตาม %
-            if healthPercent > 0.5 then
+            if hpPercent > 0.5 then
                 healthFill.BackgroundColor3 = Color3.fromRGB(0,255,0)
-            elseif healthPercent > 0.25 then
+            elseif hpPercent > 0.25 then
                 healthFill.BackgroundColor3 = Color3.fromRGB(255,170,0)
             else
                 healthFill.BackgroundColor3 = Color3.fromRGB(255,0,0)
@@ -352,9 +364,9 @@ local function createESP(player)
     end)
 end
 
--- ===== Toggle =====
+-- ===== TOGGLE =====
 VisualTab:CreateToggle({
-    Name = "Team ESP PRO",
+    Name = "Team ESP PRO (Fixed)",
     CurrentValue = false,
     Callback = function(state)
         espEnabled = state
@@ -371,7 +383,7 @@ VisualTab:CreateToggle({
     end
 })
 
--- ===== รองรับรีสปอน =====
+-- ===== RESPAWN SUPPORT =====
 for _,player in pairs(Players:GetPlayers()) do
     player.CharacterAdded:Connect(function()
         task.wait(1)
