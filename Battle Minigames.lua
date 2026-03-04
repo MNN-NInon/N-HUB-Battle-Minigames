@@ -1133,6 +1133,6 @@ end)
 
 Rayfield:Notify({
 	Title = "N-HUB V3 PRO Loaded",
-	Content = "Combat Edition Ready 😈 | Q=Blink หน้า  E=Backstab",
+	Content = "ใช้ AI ทำทั้งหมด",
 	Duration = 5
 })
