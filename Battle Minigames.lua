@@ -6,9 +6,9 @@
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-	Name = "N-HUB | Universal V3 PRO",
+	Name = "N-HUB | Battle Minigames",
 	LoadingTitle = "N-HUB",
-	LoadingSubtitle = "Black Pro Edition",
+	LoadingSubtitle = "แจกฟรี",
 	ConfigurationSaving = {
 		Enabled = true,
 		FolderName = "NHub",
