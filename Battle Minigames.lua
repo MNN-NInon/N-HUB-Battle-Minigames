@@ -6,19 +6,19 @@
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "N-HUB | Universal V3 PRO",
-   LoadingTitle = "N-HUB",
-   LoadingSubtitle = "Black Pro Edition",
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = "NHub",
-      FileName = "UniversalV3PRO"
-   },
-   KeySystem = false
+Name = "N-HUB | Universal V3 PRO",
+LoadingTitle = "N-HUB",
+LoadingSubtitle = "Black Pro Edition",
+ConfigurationSaving = {
+Enabled = true,
+FolderName = "NHub",
+FileName = "UniversalV3PRO"
+},
+KeySystem = false
 })
 
 pcall(function()
-    Rayfield:SetTheme("Dark")
+Rayfield:SetTheme("Dark")
 end)
 
 -- Services
@@ -33,28 +33,8 @@ local VirtualUser = game:GetService("VirtualUser")
 -- Character reference updater
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 LocalPlayer.CharacterAdded:Connect(function(char)
-    Character = char
+Character = char
 end)
-
--- =====================================================
--- TEAM CHECK (SHARED)
--- =====================================================
-
-local function IsEnemy(player)
-    if not player or player == LocalPlayer then
-        return false
-    end
-
-    if LocalPlayer.Team and player.Team then
-        return player.Team ~= LocalPlayer.Team
-    end
-
-    if LocalPlayer.TeamColor and player.TeamColor then
-        return player.TeamColor ~= LocalPlayer.TeamColor
-    end
-
-    return true
-end
 
 -- =====================================================
 -- PLAYER TAB
@@ -72,78 +52,78 @@ local speedConnection
 
 -- ฟังก์ชันดักการเปลี่ยนค่า
 local function hookWalkSpeed(hum)
-    if speedConnection then
-        speedConnection:Disconnect()
-        speedConnection = nil
-    end
+if speedConnection then
+speedConnection:Disconnect()
+speedConnection = nil
+end
 
-    speedConnection = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-        if speedEnabled and hum.WalkSpeed ~= speedValue then
-            hum.WalkSpeed = speedValue
-        end
-    end)
+speedConnection = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+if speedEnabled and hum.WalkSpeed ~= speedValue then
+hum.WalkSpeed = speedValue
+end
+end)
 end
 
 -- Slider
 PlayerTab:CreateSlider({
-    Name = "WalkSpeed",
-    Range = {16, 200},
-    Increment = 1,
-    CurrentValue = 16,
-    Callback = function(v)
-        speedValue = v
-        speedEnabled = true
+Name = "WalkSpeed",
+Range = {16, 200},
+Increment = 1,
+CurrentValue = 16,
+Callback = function(v)
+speedValue = v
+speedEnabled = true
 
-        if Character then
-            local hum = Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.WalkSpeed = v
-                hookWalkSpeed(hum)
-            end
-        end
-    end
+if Character then
+local hum = Character:FindFirstChildOfClass("Humanoid")
+if hum then
+hum.WalkSpeed = v
+hookWalkSpeed(hum)
+end
+end
+end
 })
 
 -- รีฮุคตอนรีสปอน
 LocalPlayer.CharacterAdded:Connect(function(char)
-    Character = char
-    local hum = char:WaitForChild("Humanoid")
+Character = char
+local hum = char:WaitForChild("Humanoid")
 
-    if speedEnabled then
-        hum.WalkSpeed = speedValue
-        hookWalkSpeed(hum)
-    end
+if speedEnabled then
+hum.WalkSpeed = speedValue
+hookWalkSpeed(hum)
+end
 end)
 
 -- JumpPower
 PlayerTab:CreateSlider({
-    Name = "JumpPower",
-    Range = {50, 200},
-    Increment = 1,
-    CurrentValue = 50,
-    Callback = function(v)
-        local hum = Character and Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.JumpPower = v end
-    end
+Name = "JumpPower",
+Range = {50, 200},
+Increment = 1,
+CurrentValue = 50,
+Callback = function(v)
+local hum = Character and Character:FindFirstChildOfClass("Humanoid")
+if hum then hum.JumpPower = v end
+end
 })
 
 -- Infinite Jump
 local infJump = false
 PlayerTab:CreateToggle({
-    Name = "Infinite Jump",
-    CurrentValue = false,
-    Callback = function(v)
-        infJump = v
-    end
+Name = "Infinite Jump",
+CurrentValue = false,
+Callback = function(v)
+infJump = v
+end
 })
 
 UIS.JumpRequest:Connect(function()
-    if infJump then
-        local hum = Character and Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end
+if infJump then
+local hum = Character and Character:FindFirstChildOfClass("Humanoid")
+if hum then
+hum:ChangeState(Enum.HumanoidStateType.Jumping)
+end
+end
 end)
 
 -- =====================================================
@@ -155,51 +135,51 @@ local flySpeed = 60
 local flyBV, flyBG, flyConn
 
 PlayerTab:CreateSlider({
-    Name = "Fly Speed",
-    Range = {20, 200},
-    Increment = 5,
-    CurrentValue = 60,
-    Callback = function(v)
-        flySpeed = v
-    end
+Name = "Fly Speed",
+Range = {20, 200},
+Increment = 5,
+CurrentValue = 60,
+Callback = function(v)
+flySpeed = v
+end
 })
 
 PlayerTab:CreateToggle({
-    Name = "Fly Mode",
-    CurrentValue = false,
-    Callback = function(state)
-        flying = state
+Name = "Fly Mode",
+CurrentValue = false,
+Callback = function(state)
+flying = state
 
-        if not Character then return end
-        local hrp = Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
+if not Character then return end
+local hrp = Character:FindFirstChild("HumanoidRootPart")
+if not hrp then return end
 
-        if state then
-            flyBV = Instance.new("BodyVelocity", hrp)
-            flyBG = Instance.new("BodyGyro", hrp)
+if state then
+flyBV = Instance.new("BodyVelocity", hrp)
+flyBG = Instance.new("BodyGyro", hrp)
 
-            flyBV.MaxForce = Vector3.new(1e9,1e9,1e9)
-            flyBG.MaxTorque = Vector3.new(1e9,1e9,1e9)
+flyBV.MaxForce = Vector3.new(1e9,1e9,1e9)
+flyBG.MaxTorque = Vector3.new(1e9,1e9,1e9)
 
-            flyConn = RunService.RenderStepped:Connect(function()
-                if not flying then return end
-                local cam = workspace.CurrentCamera
-                flyBG.CFrame = cam.CFrame
+flyConn = RunService.RenderStepped:Connect(function()
+if not flying then return end
+local cam = workspace.CurrentCamera
+flyBG.CFrame = cam.CFrame
 
-                local dir = Vector3.zero
-                if UIS:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
-                if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
-                if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
-                if UIS:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
+local dir = Vector3.zero
+if UIS:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
+if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
+if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
+if UIS:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
 
-                flyBV.Velocity = dir * flySpeed
-            end)
-        else
-            if flyConn then flyConn:Disconnect() end
-            if flyBV then flyBV:Destroy() end
-            if flyBG then flyBG:Destroy() end
-        end
-    end
+flyBV.Velocity = dir * flySpeed
+end)
+else
+if flyConn then flyConn:Disconnect() end
+if flyBV then flyBV:Destroy() end
+if flyBG then flyBG:Destroy() end
+end
+end
 })
 
 -- =====================================================
@@ -209,21 +189,21 @@ PlayerTab:CreateToggle({
 local god = false
 
 PlayerTab:CreateToggle({
-    Name = "God Mode",
-    CurrentValue = false,
-    Callback = function(v)
-        god = v
-    end
+Name = "God Mode",
+CurrentValue = false,
+Callback = function(v)
+god = v
+end
 })
 
 RunService.Heartbeat:Connect(function()
-    if god and Character then
-        local hum = Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.MaxHealth = math.huge
-            hum.Health = math.huge
-        end
-    end
+if god and Character then
+local hum = Character:FindFirstChildOfClass("Humanoid")
+if hum then
+hum.MaxHealth = math.huge
+hum.Health = math.huge
+end
+end
 end)
 
 -- =====================================================
@@ -233,257 +213,191 @@ end)
 local noclip = false
 
 PlayerTab:CreateToggle({
-    Name = "Noclip",
-    CurrentValue = false,
-    Callback = function(v)
-        noclip = v
-    end
+Name = "Noclip",
+CurrentValue = false,
+Callback = function(v)
+noclip = v
+end
 })
 
 RunService.Stepped:Connect(function()
-    if noclip and Character then
-        for _,p in pairs(Character:GetDescendants()) do
-            if p:IsA("BasePart") then
-                p.CanCollide = false
-            end
-        end
-    end
+if noclip and Character then
+for _,p in pairs(Character:GetDescendants()) do
+if p:IsA("BasePart") then
+p.CanCollide = false
+end
+end
+end
 end)
 
 -- =====================================================
--- ESP STABLE CORE V5 (NO MEMORY LEAK)
+-- ESP V3 PRO FIX
+-- Team Check Real + Vertical Health Bar
 -- =====================================================
 
-local Camera = workspace.CurrentCamera
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
-local ESPEnabled = false
-local ESPCache = {}
-local ESPConnection = nil
+local ESPEnabled = true
+local ESPObjects = {}
 
--- ใช้ IsEnemy ตัวบนของไฟล์เท่านั้น (ห้ามมีซ้ำ)
+-- สีทีม
+local TEAM_COLOR = Color3.fromRGB(0,170,255)   -- ฟ้า
+local ENEMY_COLOR = Color3.fromRGB(255,60,60)  -- แดง
 
--- =========================
--- CREATE DRAW OBJECT
--- =========================
-local function CreateDrawings(player)
-    if ESPCache[player] then return end
-
-    local box = Drawing.new("Square")
-    box.Thickness = 1.5
-    box.Filled = false
-    box.Visible = false
-
-    local name = Drawing.new("Text")
-    name.Size = 13
-    name.Center = true
-    name.Outline = true
-    name.Visible = false
-
-    local health = Drawing.new("Square")
-    health.Filled = true
-    health.Thickness = 0
-    health.Visible = false
-
-    ESPCache[player] = {
-        Box = box,
-        Name = name,
-        Health = health
-    }
+-- เช็คว่าเป็นศัตรูจริงไหม
+local function IsEnemy(player)
+if not player or player == LocalPlayer then
+return false
 end
 
--- =========================
--- REMOVE DRAW OBJECT
--- =========================
-local function RemoveDrawings(player)
-    if ESPCache[player] then
-        for _,v in pairs(ESPCache[player]) do
-            v:Remove()
-        end
-        ESPCache[player] = nil
-    end
+-- ถ้ามี Team system
+if LocalPlayer.Team and player.Team then
+return player.Team ~= LocalPlayer.Team
 end
 
--- =========================
--- UPDATE LOOP (1 CONNECTION ONLY)
--- =========================
-local function StartESP()
-    if ESPConnection then return end
-
-    ESPConnection = RunService.RenderStepped:Connect(function()
-
-        for _,player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-
-                if not ESPCache[player] then
-                    CreateDrawings(player)
-                end
-
-                local drawings = ESPCache[player]
-                local box = drawings.Box
-                local name = drawings.Name
-                local health = drawings.Health
-
-                if not ESPEnabled
-                or not player.Character
-                or not player.Character:FindFirstChild("HumanoidRootPart")
-                or not player.Character:FindFirstChild("Humanoid")
-                or player.Character.Humanoid.Health <= 0
-                or not IsEnemy(player) then
-
-                    box.Visible = false
-                    name.Visible = false
-                    health.Visible = false
-                    continue
-                end
-
-                local root = player.Character.HumanoidRootPart
-                local hum = player.Character.Humanoid
-
-                local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
-                if not onScreen then
-                    box.Visible = false
-                    name.Visible = false
-                    health.Visible = false
-                    continue
-                end
-
-                local scale = 1 / (pos.Z * math.tan(math.rad(Camera.FieldOfView * 0.5)) * 2) * 100
-                local width = 28 * scale
-                local height = 44 * scale
-
-                local color = Color3.fromRGB(255,0,0)
-
-                -- BOX
-                box.Size = Vector2.new(width, height)
-                box.Position = Vector2.new(pos.X - width/2, pos.Y - height/2)
-                box.Color = color
-                box.Visible = true
-
-                -- NAME
-                name.Text = player.Name
-                name.Position = Vector2.new(pos.X, pos.Y - height/2 - 13)
-                name.Color = color
-                name.Visible = true
-
-                -- HEALTH BAR (VERTICAL)
-                local hpPercent = hum.Health / hum.MaxHealth
-                local barHeight = height * hpPercent
-
-                health.Size = Vector2.new(4, barHeight)
-                health.Position = Vector2.new(
-                    pos.X - width/2 - 6,
-                    pos.Y + height/2 - barHeight
-                )
-                health.Color = Color3.fromRGB(0,255,0)
-                health.Visible = true
-            end
-        end
-    end)
+-- ถ้าใช้ TeamColor แทน
+if LocalPlayer.TeamColor and player.TeamColor then
+return player.TeamColor ~= LocalPlayer.TeamColor
 end
 
--- =========================
--- CLEAN WHEN PLAYER LEAVE
--- =========================
-Players.PlayerRemoving:Connect(function(player)
-    RemoveDrawings(player)
+return true
+end
+
+local function CreateESP(player)
+if ESPObjects[player] then return end
+
+ESPObjects[player] = {}
+
+local function SetupCharacter(char)
+local hum = char:WaitForChild("Humanoid")
+local root = char:WaitForChild("HumanoidRootPart")
+
+-- BOX
+local box = Drawing.new("Square")
+box.Thickness = 1
+box.Filled = false
+box.Visible = false
+
+-- NAME + DISTANCE
+local name = Drawing.new("Text")
+name.Size = 13
+name.Center = true
+name.Outline = true
+name.Visible = false
+
+-- VERTICAL HEALTH BAR BACK
+local hpBack = Drawing.new("Square")
+hpBack.Filled = true
+hpBack.Color = Color3.new(0,0,0)
+hpBack.Visible = false
+
+-- VERTICAL HEALTH BAR
+local hpBar = Drawing.new("Square")
+hpBar.Filled = true
+hpBar.Visible = false
+
+ESPObjects[player] = {
+box = box,
+name = name,
+hpBack = hpBack,
+hpBar = hpBar
+}
+
+RunService.RenderStepped:Connect(function()
+if not ESPEnabled then
+box.Visible = false
+name.Visible = false
+hpBack.Visible = false
+hpBar.Visible = false
+return
+end
+
+if not char or not char.Parent then
+box.Visible = false
+name.Visible = false
+hpBack.Visible = false
+hpBar.Visible = false
+return
+end
+
+local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(root.Position)
+if onScreen then
+
+local distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - root.Position).Magnitude)
+
+local color = IsEnemy(player) and ENEMY_COLOR or TEAM_COLOR
+
+                -- ขนาดกล่อง
+                local scale = 3000 / pos.Z
+                local width = 40 * scale
+                local height = 65 * scale
+
+               -- SCALE FIX (ไม่บวม)
+             local scale = math.clamp(1200 / pos.Z, 0.8, 1.6)
+             local width = 28 * scale
+             local height = 48 * scale
+               
+-- BOX
+box.Size = Vector2.new(width, height)
+box.Position = Vector2.new(pos.X - width/2, pos.Y - height/2)
+box.Color = color
+box.Visible = true
+
+-- NAME
+name.Text = player.Name.." ["..distance.."m]"
+name.Position = Vector2.new(pos.X, pos.Y - height/2 - 14)
+name.Color = color
+name.Visible = true
+
+-- HEALTH %
+local hpPercent = hum.Health / hum.MaxHealth
+
+-- BACKGROUND
+hpBack.Size = Vector2.new(4, height)
+hpBack.Position = Vector2.new(pos.X - width/2 - 8, pos.Y - height/2)
+hpBack.Visible = true
+
+-- HP BAR (แนวตั้ง)
+hpBar.Size = Vector2.new(4, height * hpPercent)
+hpBar.Position = Vector2.new(
+pos.X - width/2 - 8,
+pos.Y - height/2 + (height - (height * hpPercent))
+)
+hpBar.Color = Color3.fromRGB(0,255,0)
+hpBar.Visible = true
+
+else
+box.Visible = false
+name.Visible = false
+hpBack.Visible = false
+hpBar.Visible = false
+end
 end)
-
--- =========================
--- START LOOP
--- =========================
-StartESP()
-
--- =========================
--- TOGGLE
--- =========================
-PlayerTab:CreateToggle({
-    Name = "ESP Enemy Only",
-    CurrentValue = false,
-    Callback = function(v)
-        ESPEnabled = v
-    end
-})
-
--- =====================================================
--- HITBOX EXPANDER V4 (STABLE LOOP FIX)
--- =====================================================
-
-local HitboxEnabled = false
-local HitboxVisible = true
-local HitboxSize = 6
-local HitboxObjects = {}
-
-local function CreateHitbox(player)
-    if not player.Character then return end
-    if not IsEnemy(player) then return end
-
-    local root = player.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-
-    if not HitboxObjects[player] then
-        local box = Instance.new("BoxHandleAdornment")
-        box.Adornee = root
-        box.AlwaysOnTop = true
-        box.ZIndex = 5
-        box.Parent = root
-        HitboxObjects[player] = box
-    end
-
-    local box = HitboxObjects[player]
-    box.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
-    box.Color3 = Color3.fromRGB(255,0,0)
-    box.Transparency = HitboxVisible and 0.4 or 1
 end
 
-local function RemoveHitbox(player)
-    if HitboxObjects[player] then
-        HitboxObjects[player]:Destroy()
-        HitboxObjects[player] = nil
-    end
+if player.Character then
+SetupCharacter(player.Character)
 end
 
--- Loop อัปเดตทุก 1 วิ ลดโหลด
-task.spawn(function()
-    while true do
-        task.wait(1)
-
-        for _,player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                if HitboxEnabled and IsEnemy(player) then
-                    CreateHitbox(player)
-                else
-                    RemoveHitbox(player)
-                end
-            end
-        end
-    end
+player.CharacterAdded:Connect(function(char)
+SetupCharacter(char)
 end)
+end
 
-PlayerTab:CreateToggle({
-    Name = "Hitbox Expander (Enemy)",
-    CurrentValue = false,
-    Callback = function(v)
-        HitboxEnabled = v
-    end
-})
+-- สร้าง ESP ให้ทุกคน
+for _,plr in pairs(Players:GetPlayers()) do
+if plr ~= LocalPlayer then
+CreateESP(plr)
+end
+end
 
-PlayerTab:CreateToggle({
-    Name = "Show Hitbox",
-    CurrentValue = true,
-    Callback = function(v)
-        HitboxVisible = v
-    end
-})
-
-PlayerTab:CreateSlider({
-    Name = "Hitbox Size",
-    Range = {4, 12},
-    Increment = 1,
-    CurrentValue = 6,
-    Callback = function(v)
-        HitboxSize = v
-    end
-})
+Players.PlayerAdded:Connect(function(plr)
+if plr ~= LocalPlayer then
+CreateESP(plr)
+end
+end)
 
 -- =====================================================
 -- TELEPORT TAB
@@ -493,23 +407,23 @@ local TeleportTab = Window:CreateTab("Teleport", 4483362458)
 local clickTP = false
 
 TeleportTab:CreateToggle({
-    Name = "CTRL + Click TP",
-    CurrentValue = false,
-    Callback = function(v)
-        clickTP = v
-    end
+Name = "CTRL + Click TP",
+CurrentValue = false,
+Callback = function(v)
+clickTP = v
+end
 })
 
 UIS.InputBegan:Connect(function(input, gp)
-    if clickTP and not gp then
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        and UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-            local mouse = LocalPlayer:GetMouse()
-            if mouse.Hit and Character then
-                Character:MoveTo(mouse.Hit.Position)
-            end
-        end
-    end
+if clickTP and not gp then
+if input.UserInputType == Enum.UserInputType.MouseButton1
+and UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+local mouse = LocalPlayer:GetMouse()
+if mouse.Hit and Character then
+Character:MoveTo(mouse.Hit.Position)
+end
+end
+end
 end)
 
 -- =====================================================
@@ -519,32 +433,32 @@ end)
 local UtilityTab = Window:CreateTab("Utility", 4483362458)
 
 UtilityTab:CreateButton({
-    Name = "Rejoin Server",
-    Callback = function()
-        TeleportService:Teleport(game.PlaceId, LocalPlayer)
-    end
+Name = "Rejoin Server",
+Callback = function()
+TeleportService:Teleport(game.PlaceId, LocalPlayer)
+end
 })
 
 UtilityTab:CreateButton({
-    Name = "Anti AFK",
-    Callback = function()
-        LocalPlayer.Idled:Connect(function()
-            VirtualUser:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
-            task.wait(1)
-            VirtualUser:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
-        end)
-    end
+Name = "Anti AFK",
+Callback = function()
+LocalPlayer.Idled:Connect(function()
+VirtualUser:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+task.wait(1)
+VirtualUser:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+end)
+end
 })
 
 UtilityTab:CreateButton({
-    Name = "Destroy UI",
-    Callback = function()
-        Rayfield:Destroy()
-    end
+Name = "Destroy UI",
+Callback = function()
+Rayfield:Destroy()
+end
 })
 
 Rayfield:Notify({
-    Title = "N-HUB V3 PRO Loaded",
-    Content = "All Systems Ready 😈",
-    Duration = 4
+Title = "N-HUB V3 PRO Loaded",
+Content = "All Systems Ready 😈",
+Duration = 4
 })
