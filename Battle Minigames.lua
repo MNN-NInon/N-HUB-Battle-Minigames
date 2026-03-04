@@ -37,6 +37,26 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 end)
 
 -- =====================================================
+-- TEAM CHECK (SHARED)
+-- =====================================================
+
+local function IsEnemy(player)
+    if not player or player == LocalPlayer then
+        return false
+    end
+
+    if LocalPlayer.Team and player.Team then
+        return player.Team ~= LocalPlayer.Team
+    end
+
+    if LocalPlayer.TeamColor and player.TeamColor then
+        return player.TeamColor ~= LocalPlayer.TeamColor
+    end
+
+    return true
+end
+
+-- =====================================================
 -- PLAYER TAB
 -- =====================================================
 
@@ -231,109 +251,108 @@ RunService.Stepped:Connect(function()
 end)
 
 -- =====================================================
--- ESP V3 PRO FIX
--- Team Check Real + Vertical Health Bar
+-- ESP STABLE CORE V5 (NO MEMORY LEAK)
 -- =====================================================
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
-local ESPEnabled = true
-local ESPObjects = {}
+local ESPEnabled = false
+local ESPCache = {}
+local ESPConnection = nil
 
--- สีทีม
-local TEAM_COLOR = Color3.fromRGB(0,170,255)   -- ฟ้า
-local ENEMY_COLOR = Color3.fromRGB(255,60,60)  -- แดง
+-- ใช้ IsEnemy ตัวบนของไฟล์เท่านั้น (ห้ามมีซ้ำ)
 
--- เช็คว่าเป็นศัตรูจริงไหม
-local function IsEnemy(player)
-    if not player or player == LocalPlayer then
-        return false
-    end
+-- =========================
+-- CREATE DRAW OBJECT
+-- =========================
+local function CreateDrawings(player)
+    if ESPCache[player] then return end
 
-    -- ถ้ามี Team system
-    if LocalPlayer.Team and player.Team then
-        return player.Team ~= LocalPlayer.Team
-    end
+    local box = Drawing.new("Square")
+    box.Thickness = 1.5
+    box.Filled = false
+    box.Visible = false
 
-    -- ถ้าใช้ TeamColor แทน
-    if LocalPlayer.TeamColor and player.TeamColor then
-        return player.TeamColor ~= LocalPlayer.TeamColor
-    end
+    local name = Drawing.new("Text")
+    name.Size = 13
+    name.Center = true
+    name.Outline = true
+    name.Visible = false
 
-    return true
+    local health = Drawing.new("Square")
+    health.Filled = true
+    health.Thickness = 0
+    health.Visible = false
+
+    ESPCache[player] = {
+        Box = box,
+        Name = name,
+        Health = health
+    }
 end
 
-local function CreateESP(player)
-    if ESPObjects[player] then return end
+-- =========================
+-- REMOVE DRAW OBJECT
+-- =========================
+local function RemoveDrawings(player)
+    if ESPCache[player] then
+        for _,v in pairs(ESPCache[player]) do
+            v:Remove()
+        end
+        ESPCache[player] = nil
+    end
+end
 
-    ESPObjects[player] = {}
+-- =========================
+-- UPDATE LOOP (1 CONNECTION ONLY)
+-- =========================
+local function StartESP()
+    if ESPConnection then return end
 
-    local function SetupCharacter(char)
-        local hum = char:WaitForChild("Humanoid")
-        local root = char:WaitForChild("HumanoidRootPart")
+    ESPConnection = RunService.RenderStepped:Connect(function()
 
-        -- BOX
-        local box = Drawing.new("Square")
-        box.Thickness = 1
-        box.Filled = false
-        box.Visible = false
+        for _,player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
 
-        -- NAME + DISTANCE
-        local name = Drawing.new("Text")
-        name.Size = 13
-        name.Center = true
-        name.Outline = true
-        name.Visible = false
+                if not ESPCache[player] then
+                    CreateDrawings(player)
+                end
 
-        -- VERTICAL HEALTH BAR BACK
-        local hpBack = Drawing.new("Square")
-        hpBack.Filled = true
-        hpBack.Color = Color3.new(0,0,0)
-        hpBack.Visible = false
+                local drawings = ESPCache[player]
+                local box = drawings.Box
+                local name = drawings.Name
+                local health = drawings.Health
 
-        -- VERTICAL HEALTH BAR
-        local hpBar = Drawing.new("Square")
-        hpBar.Filled = true
-        hpBar.Visible = false
+                if not ESPEnabled
+                or not player.Character
+                or not player.Character:FindFirstChild("HumanoidRootPart")
+                or not player.Character:FindFirstChild("Humanoid")
+                or player.Character.Humanoid.Health <= 0
+                or not IsEnemy(player) then
 
-        ESPObjects[player] = {
-            box = box,
-            name = name,
-            hpBack = hpBack,
-            hpBar = hpBar
-        }
+                    box.Visible = false
+                    name.Visible = false
+                    health.Visible = false
+                    continue
+                end
 
-        RunService.RenderStepped:Connect(function()
-            if not ESPEnabled then
-                box.Visible = false
-                name.Visible = false
-                hpBack.Visible = false
-                hpBar.Visible = false
-                return
-            end
+                local root = player.Character.HumanoidRootPart
+                local hum = player.Character.Humanoid
 
-            if not char or not char.Parent then
-                box.Visible = false
-                name.Visible = false
-                hpBack.Visible = false
-                hpBar.Visible = false
-                return
-            end
+                local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
+                if not onScreen then
+                    box.Visible = false
+                    name.Visible = false
+                    health.Visible = false
+                    continue
+                end
 
-            local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(root.Position)
-            if onScreen then
+                local scale = 1 / (pos.Z * math.tan(math.rad(Camera.FieldOfView * 0.5)) * 2) * 100
+                local width = 28 * scale
+                local height = 44 * scale
 
-                local distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - root.Position).Magnitude)
+                local color = Color3.fromRGB(255,0,0)
 
-                local color = IsEnemy(player) and ENEMY_COLOR or TEAM_COLOR
-
-               -- SCALE FIX (ไม่บวม)
-             local scale = math.clamp(1200 / pos.Z, 0.8, 1.6)
-             local width = 28 * scale
-             local height = 48 * scale
-               
                 -- BOX
                 box.Size = Vector2.new(width, height)
                 box.Position = Vector2.new(pos.X - width/2, pos.Y - height/2)
@@ -341,113 +360,59 @@ local function CreateESP(player)
                 box.Visible = true
 
                 -- NAME
-                name.Text = player.Name.." ["..distance.."m]"
-                name.Position = Vector2.new(pos.X, pos.Y - height/2 - 14)
+                name.Text = player.Name
+                name.Position = Vector2.new(pos.X, pos.Y - height/2 - 13)
                 name.Color = color
                 name.Visible = true
 
-                -- HEALTH %
+                -- HEALTH BAR (VERTICAL)
                 local hpPercent = hum.Health / hum.MaxHealth
+                local barHeight = height * hpPercent
 
-                -- BACKGROUND
-                hpBack.Size = Vector2.new(4, height)
-                hpBack.Position = Vector2.new(pos.X - width/2 - 8, pos.Y - height/2)
-                hpBack.Visible = true
-
-                -- HP BAR (แนวตั้ง)
-                hpBar.Size = Vector2.new(4, height * hpPercent)
-                hpBar.Position = Vector2.new(
-                    pos.X - width/2 - 8,
-                    pos.Y - height/2 + (height - (height * hpPercent))
+                health.Size = Vector2.new(4, barHeight)
+                health.Position = Vector2.new(
+                    pos.X - width/2 - 6,
+                    pos.Y + height/2 - barHeight
                 )
-                hpBar.Color = Color3.fromRGB(0,255,0)
-                hpBar.Visible = true
-
-            else
-                box.Visible = false
-                name.Visible = false
-                hpBack.Visible = false
-                hpBar.Visible = false
+                health.Color = Color3.fromRGB(0,255,0)
+                health.Visible = true
             end
-        end)
-    end
-
-    if player.Character then
-        SetupCharacter(player.Character)
-    end
-
-    player.CharacterAdded:Connect(function(char)
-        SetupCharacter(char)
+        end
     end)
 end
 
--- สร้าง ESP ให้ทุกคน
-for _,plr in pairs(Players:GetPlayers()) do
-    if plr ~= LocalPlayer then
-        CreateESP(plr)
-    end
-end
-
-Players.PlayerAdded:Connect(function(plr)
-    if plr ~= LocalPlayer then
-        CreateESP(plr)
-    end
+-- =========================
+-- CLEAN WHEN PLAYER LEAVE
+-- =========================
+Players.PlayerRemoving:Connect(function(player)
+    RemoveDrawings(player)
 end)
 
--- =====================================================
--- ESP TOGGLE
--- =====================================================
+-- =========================
+-- START LOOP
+-- =========================
+StartESP()
 
+-- =========================
+-- TOGGLE
+-- =========================
 PlayerTab:CreateToggle({
-    Name = "Player ESP",
-    CurrentValue = true,
+    Name = "ESP Enemy Only",
+    CurrentValue = false,
     Callback = function(v)
         ESPEnabled = v
-
-        if not v then
-            -- ซ่อนทั้งหมดทันที
-            for _,esp in pairs(ESPObjects) do
-                if esp.box then esp.box.Visible = false end
-                if esp.name then esp.name.Visible = false end
-                if esp.hpBack then esp.hpBack.Visible = false end
-                if esp.hpBar then esp.hpBar.Visible = false end
-            end
-        end
     end
 })
 
 -- =====================================================
--- HITBOX EXPANDER V3 (VISUAL SAFE VERSION)
--- Enemy Only + Show/Hide
+-- HITBOX EXPANDER V4 (STABLE LOOP FIX)
 -- =====================================================
-
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
 
 local HitboxEnabled = false
 local HitboxVisible = true
 local HitboxSize = 6
-
 local HitboxObjects = {}
 
--- เช็คศัตรู
-local function IsEnemy(player)
-    if not player or player == LocalPlayer then
-        return false
-    end
-
-    if LocalPlayer.Team and player.Team then
-        return player.Team ~= LocalPlayer.Team
-    end
-
-    if LocalPlayer.TeamColor and player.TeamColor then
-        return player.TeamColor ~= LocalPlayer.TeamColor
-    end
-
-    return true
-end
-
--- สร้างกล่อง
 local function CreateHitbox(player)
     if not player.Character then return end
     if not IsEnemy(player) then return end
@@ -455,21 +420,21 @@ local function CreateHitbox(player)
     local root = player.Character:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    if HitboxObjects[player] then return end
+    if not HitboxObjects[player] then
+        local box = Instance.new("BoxHandleAdornment")
+        box.Adornee = root
+        box.AlwaysOnTop = true
+        box.ZIndex = 5
+        box.Parent = root
+        HitboxObjects[player] = box
+    end
 
-    local box = Instance.new("BoxHandleAdornment")
-    box.Adornee = root
-    box.AlwaysOnTop = true
-    box.ZIndex = 5
+    local box = HitboxObjects[player]
     box.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
     box.Color3 = Color3.fromRGB(255,0,0)
-    box.Transparency = 0.4
-    box.Parent = root
-
-    HitboxObjects[player] = box
+    box.Transparency = HitboxVisible and 0.4 or 1
 end
 
--- ลบกล่อง
 local function RemoveHitbox(player)
     if HitboxObjects[player] then
         HitboxObjects[player]:Destroy()
@@ -477,43 +442,39 @@ local function RemoveHitbox(player)
     end
 end
 
--- อัปเดตทุกคน
-local function UpdateHitboxes()
-    for _,player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            if HitboxEnabled and IsEnemy(player) then
-                CreateHitbox(player)
-            else
-                RemoveHitbox(player)
+-- Loop อัปเดตทุก 1 วิ ลดโหลด
+task.spawn(function()
+    while true do
+        task.wait(1)
+
+        for _,player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                if HitboxEnabled and IsEnemy(player) then
+                    CreateHitbox(player)
+                else
+                    RemoveHitbox(player)
+                end
             end
         end
     end
-end
+end)
 
--- Toggle ขยาย
 PlayerTab:CreateToggle({
     Name = "Hitbox Expander (Enemy)",
     CurrentValue = false,
     Callback = function(v)
         HitboxEnabled = v
-        UpdateHitboxes()
     end
 })
 
--- Toggle มองเห็น
 PlayerTab:CreateToggle({
     Name = "Show Hitbox",
     CurrentValue = true,
     Callback = function(v)
         HitboxVisible = v
-
-        for _,box in pairs(HitboxObjects) do
-            box.Transparency = v and 0.4 or 1
-        end
     end
 })
 
--- Slider ขนาด
 PlayerTab:CreateSlider({
     Name = "Hitbox Size",
     Range = {4, 12},
@@ -521,25 +482,8 @@ PlayerTab:CreateSlider({
     CurrentValue = 6,
     Callback = function(v)
         HitboxSize = v
-
-        for _,box in pairs(HitboxObjects) do
-            box.Size = Vector3.new(v, v, v)
-        end
     end
 })
-
--- รีฮุคตอนเกิดใหม่
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        task.wait(1)
-        UpdateHitboxes()
-    end)
-end)
-
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(1)
-    UpdateHitboxes()
-end)
 
 -- =====================================================
 -- TELEPORT TAB
