@@ -395,6 +395,106 @@ Players.PlayerAdded:Connect(function(plr)
 end)
 
 -- =====================================================
+-- HITBOX EXPANDER (ENEMY ONLY)
+-- =====================================================
+
+local HitboxEnabled = false
+local HitboxSize = 6 -- ปรับได้ 4-12
+local OriginalSizes = {}
+
+local function IsEnemy(player)
+    if not player or player == LocalPlayer then
+        return false
+    end
+
+    if LocalPlayer.Team and player.Team then
+        return player.Team ~= LocalPlayer.Team
+    end
+
+    if LocalPlayer.TeamColor and player.TeamColor then
+        return player.TeamColor ~= LocalPlayer.TeamColor
+    end
+
+    return true
+end
+
+local function ApplyHitbox(player)
+    if not player.Character then return end
+    if not IsEnemy(player) then return end
+
+    local root = player.Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        if not OriginalSizes[player] then
+            OriginalSizes[player] = root.Size
+        end
+
+        root.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+        root.Transparency = 0.5
+        root.BrickColor = BrickColor.new("Really red")
+        root.Material = Enum.Material.Neon
+        root.CanCollide = false
+    end
+end
+
+local function ResetHitbox(player)
+    if not player.Character then return end
+
+    local root = player.Character:FindFirstChild("HumanoidRootPart")
+    if root and OriginalSizes[player] then
+        root.Size = OriginalSizes[player]
+        root.Transparency = 1
+        root.Material = Enum.Material.Plastic
+    end
+end
+
+-- Loop อัปเดตตลอด
+game:GetService("RunService").Heartbeat:Connect(function()
+    if HitboxEnabled then
+        for _,player in pairs(game.Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                ApplyHitbox(player)
+            end
+        end
+    end
+end)
+
+-- Toggle
+PlayerTab:CreateToggle({
+    Name = "Hitbox Expander (Enemy)",
+    CurrentValue = false,
+    Callback = function(v)
+        HitboxEnabled = v
+
+        if not v then
+            for _,player in pairs(game.Players:GetPlayers()) do
+                ResetHitbox(player)
+            end
+        end
+    end
+})
+
+-- Slider ขนาด
+PlayerTab:CreateSlider({
+    Name = "Hitbox Size",
+    Range = {4, 12},
+    Increment = 1,
+    CurrentValue = 6,
+    Callback = function(v)
+        HitboxSize = v
+    end
+})
+
+-- รีฮุคตอนเกิดใหม่
+game.Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        if HitboxEnabled then
+            task.wait(1)
+            ApplyHitbox(player)
+        end
+    end)
+end)
+
+-- =====================================================
 -- TELEPORT TAB
 -- =====================================================
 
