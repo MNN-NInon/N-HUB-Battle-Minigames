@@ -231,14 +231,16 @@ RunService.Stepped:Connect(function()
 end)
 
 -- =====================================================
--- VISUAL TAB (ADVANCED ESP)
+-- ADVANCED TEAM ESP (RESPAWN FIX)
 -- =====================================================
 
 local VisualTab = Window:CreateTab("Visual", 4483362458)
 
-local esp = false
-local espConns = {}
+local espEnabled = false
+local enemyOnly = true
+local espConnections = {}
 
+-- ลบ ESP
 local function removeESP(player)
     if player.Character then
         local h = player.Character:FindFirstChild("NHubHighlight")
@@ -250,18 +252,35 @@ local function removeESP(player)
             if bb then bb:Destroy() end
         end
     end
-    if espConns[player] then
-        espConns[player]:Disconnect()
-        espConns[player] = nil
+
+    if espConnections[player] then
+        espConnections[player]:Disconnect()
+        espConnections[player] = nil
     end
 end
 
+-- เช็คว่าเป็นศัตรูไหม
+local function isEnemy(player)
+    if not LocalPlayer.Team or not player.Team then
+        return true
+    end
+    return player.Team ~= LocalPlayer.Team
+end
+
+-- สร้าง ESP
 local function createESP(player)
     if player == LocalPlayer then return end
     if not player.Character then return end
+
+    if enemyOnly and not isEnemy(player) then
+        removeESP(player)
+        return
+    end
+
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
+    -- Highlight
     if not player.Character:FindFirstChild("NHubHighlight") then
         local h = Instance.new("Highlight")
         h.Name = "NHubHighlight"
@@ -270,39 +289,46 @@ local function createESP(player)
         h.Parent = player.Character
     end
 
+    -- Billboard
     if not hrp:FindFirstChild("NHubBillboard") then
-        local bb = Instance.new("BillboardGui", hrp)
+        local bb = Instance.new("BillboardGui")
         bb.Name = "NHubBillboard"
         bb.Size = UDim2.new(0,200,0,50)
         bb.StudsOffset = Vector3.new(0,3,0)
         bb.AlwaysOnTop = true
+        bb.Parent = hrp
 
-        local txt = Instance.new("TextLabel", bb)
+        local txt = Instance.new("TextLabel")
         txt.Size = UDim2.new(1,0,1,0)
         txt.BackgroundTransparency = 1
         txt.TextScaled = true
         txt.TextStrokeTransparency = 0
         txt.Font = Enum.Font.GothamBold
+        txt.Parent = bb
 
-        espConns[player] = RunService.RenderStepped:Connect(function()
-            if esp and Character and player.Character then
-                local myHRP = Character:FindFirstChild("HumanoidRootPart")
-                local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
-                if myHRP and targetHRP then
-                    local dist = (myHRP.Position - targetHRP.Position).Magnitude
-                    txt.Text = player.Name.." | "..math.floor(dist).."m"
-                end
+        espConnections[player] = RunService.RenderStepped:Connect(function()
+            if not espEnabled then return end
+            if not player.Character or not Character then return end
+
+            local myHRP = Character:FindFirstChild("HumanoidRootPart")
+            local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+
+            if myHRP and targetHRP then
+                local dist = (myHRP.Position - targetHRP.Position).Magnitude
+                txt.Text = player.Name.." | "..math.floor(dist).."m"
             end
         end)
     end
 end
 
+-- Toggle ESP
 VisualTab:CreateToggle({
-    Name = "Player ESP (Name + Distance)",
+    Name = "Enemy ESP (Name + Distance)",
     CurrentValue = false,
-    Callback = function(v)
-        esp = v
-        if v then
+    Callback = function(state)
+        espEnabled = state
+
+        if state then
             for _,plr in pairs(Players:GetPlayers()) do
                 createESP(plr)
             end
@@ -314,6 +340,25 @@ VisualTab:CreateToggle({
     end
 })
 
+-- รองรับ Player เข้าใหม่
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        task.wait(1)
+        if espEnabled then
+            createESP(player)
+        end
+    end)
+end)
+
+-- รองรับรีสปอน
+for _,player in pairs(Players:GetPlayers()) do
+    player.CharacterAdded:Connect(function()
+        task.wait(1)
+        if espEnabled then
+            createESP(player)
+        end
+    end)
+end
 -- =====================================================
 -- TELEPORT TAB
 -- =====================================================
