@@ -395,13 +395,43 @@ Players.PlayerAdded:Connect(function(plr)
 end)
 
 -- =====================================================
--- HITBOX EXPANDER (ENEMY ONLY)
+-- ESP TOGGLE
+-- =====================================================
+
+PlayerTab:CreateToggle({
+    Name = "Player ESP",
+    CurrentValue = true,
+    Callback = function(v)
+        ESPEnabled = v
+
+        if not v then
+            -- ซ่อนทั้งหมดทันที
+            for _,esp in pairs(ESPObjects) do
+                if esp.box then esp.box.Visible = false end
+                if esp.name then esp.name.Visible = false end
+                if esp.hpBack then esp.hpBack.Visible = false end
+                if esp.hpBar then esp.hpBar.Visible = false end
+            end
+        end
+    end
+})
+
+-- =====================================================
+-- HITBOX EXPANDER V2 (ENEMY ONLY + SHOW/HIDE)
+-- Stable + Respawn Safe
 -- =====================================================
 
 local HitboxEnabled = false
-local HitboxSize = 6 -- ปรับได้ 4-12
-local OriginalSizes = {}
+local HitboxVisible = true
+local HitboxSize = 6
 
+local OriginalData = {}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- เช็คศัตรู
 local function IsEnemy(player)
     if not player or player == LocalPlayer then
         return false
@@ -418,39 +448,53 @@ local function IsEnemy(player)
     return true
 end
 
+-- ขยาย Hitbox
 local function ApplyHitbox(player)
     if not player.Character then return end
     if not IsEnemy(player) then return end
 
     local root = player.Character:FindFirstChild("HumanoidRootPart")
-    if root then
-        if not OriginalSizes[player] then
-            OriginalSizes[player] = root.Size
-        end
+    if not root then return end
 
-        root.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
-        root.Transparency = 0.5
-        root.BrickColor = BrickColor.new("Really red")
-        root.Material = Enum.Material.Neon
-        root.CanCollide = false
+    -- เก็บค่าเดิมครั้งแรก
+    if not OriginalData[player] then
+        OriginalData[player] = {
+            Size = root.Size,
+            Transparency = root.Transparency,
+            Material = root.Material
+        }
     end
-end
 
-local function ResetHitbox(player)
-    if not player.Character then return end
+    root.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+    root.CanCollide = false
 
-    local root = player.Character:FindFirstChild("HumanoidRootPart")
-    if root and OriginalSizes[player] then
-        root.Size = OriginalSizes[player]
+    if HitboxVisible then
+        root.Transparency = 0.4
+        root.Material = Enum.Material.Neon
+        root.Color = Color3.fromRGB(255,0,0)
+    else
         root.Transparency = 1
         root.Material = Enum.Material.Plastic
     end
 end
 
--- Loop อัปเดตตลอด
-game:GetService("RunService").Heartbeat:Connect(function()
+-- คืนค่าเดิม
+local function ResetHitbox(player)
+    if not player.Character then return end
+    local root = player.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    if OriginalData[player] then
+        root.Size = OriginalData[player].Size
+        root.Transparency = OriginalData[player].Transparency
+        root.Material = OriginalData[player].Material
+    end
+end
+
+-- Loop คุมเสถียร
+RunService.Heartbeat:Connect(function()
     if HitboxEnabled then
-        for _,player in pairs(game.Players:GetPlayers()) do
+        for _,player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer then
                 ApplyHitbox(player)
             end
@@ -458,7 +502,7 @@ game:GetService("RunService").Heartbeat:Connect(function()
     end
 end)
 
--- Toggle
+-- Toggle เปิด/ปิดขยาย
 PlayerTab:CreateToggle({
     Name = "Hitbox Expander (Enemy)",
     CurrentValue = false,
@@ -466,10 +510,19 @@ PlayerTab:CreateToggle({
         HitboxEnabled = v
 
         if not v then
-            for _,player in pairs(game.Players:GetPlayers()) do
+            for _,player in pairs(Players:GetPlayers()) do
                 ResetHitbox(player)
             end
         end
+    end
+})
+
+-- Toggle มองเห็น
+PlayerTab:CreateToggle({
+    Name = "Show Hitbox",
+    CurrentValue = true,
+    Callback = function(v)
+        HitboxVisible = v
     end
 })
 
@@ -484,11 +537,11 @@ PlayerTab:CreateSlider({
     end
 })
 
--- รีฮุคตอนเกิดใหม่
-game.Players.PlayerAdded:Connect(function(player)
+-- รองรับเกิดใหม่
+Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function()
+        task.wait(1)
         if HitboxEnabled then
-            task.wait(1)
             ApplyHitbox(player)
         end
     end)
