@@ -8,7 +8,7 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window = Rayfield:CreateWindow({
 	Name = "N-HUB | Battle Minigames",
 	LoadingTitle = "N-HUB",
-	LoadingSubtitle = "แจกฟรี",
+	LoadingSubtitle = "ตัวทดลอง",
 	ConfigurationSaving = {
 		Enabled = true,
 		FolderName = "NHub",
@@ -414,22 +414,23 @@ local function ApplyHitbox()
 		if plr ~= LocalPlayer and plr.Character then
 			local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
 			if hrp then
-				-- เก็บค่าเดิมครั้งแรก
 				if not hitboxOriginals[plr] then
-					hitboxOriginals[plr] = hrp.Size
+					hitboxOriginals[plr] = {size = hrp.Size, canCollide = hrp.CanCollide}
 				end
 				hrp.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+				hrp.CanCollide = false  -- ไม่ให้เหยียบ hitbox
 			end
 		end
 	end
 end
 
 local function RemoveHitbox()
-	for plr, origSize in pairs(hitboxOriginals) do
+	for plr, orig in pairs(hitboxOriginals) do
 		if plr.Character then
 			local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
 			if hrp then
-				hrp.Size = origSize
+				hrp.Size = orig.size
+				hrp.CanCollide = orig.canCollide
 			end
 		end
 	end
@@ -1133,6 +1134,6 @@ end)
 
 Rayfield:Notify({
 	Title = "N-HUB V3 PRO Loaded",
-	Content = "ใช้ AI ทำทั้งหมด",
+	Content = "แจกฟรี",
 	Duration = 5
 })
