@@ -329,11 +329,11 @@ local function CreateESP(player)
 
                 local color = IsEnemy(player) and ENEMY_COLOR or TEAM_COLOR
 
-                -- ขนาดกล่อง
-                local scale = 3000 / pos.Z
-                local width = 40 * scale
-                local height = 65 * scale
-
+               -- SCALE FIX (ไม่บวม)
+             local scale = math.clamp(1200 / pos.Z, 0.8, 1.6)
+             local width = 28 * scale
+             local height = 48 * scale
+               
                 -- BOX
                 box.Size = Vector2.new(width, height)
                 box.Position = Vector2.new(pos.X - width/2, pos.Y - height/2)
