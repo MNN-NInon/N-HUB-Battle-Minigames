@@ -231,16 +231,16 @@ RunService.Stepped:Connect(function()
 end)
 
 -- =====================================================
--- ADVANCED TEAM ESP (RESPAWN FIX)
+-- ESP V3.5 PRO
+-- Team Color • Health Bar • Box • Respawn Safe
 -- =====================================================
 
 local VisualTab = Window:CreateTab("Visual", 4483362458)
 
 local espEnabled = false
-local enemyOnly = true
 local espConnections = {}
 
--- ลบ ESP
+-- ===== ลบ ESP =====
 local function removeESP(player)
     if player.Character then
         local h = player.Character:FindFirstChild("NHubHighlight")
@@ -259,7 +259,7 @@ local function removeESP(player)
     end
 end
 
--- เช็คว่าเป็นศัตรูไหม
+-- ===== ตรวจสอบทีม =====
 local function isEnemy(player)
     if not LocalPlayer.Team or not player.Team then
         return true
@@ -267,63 +267,94 @@ local function isEnemy(player)
     return player.Team ~= LocalPlayer.Team
 end
 
--- สร้าง ESP
+-- ===== สร้าง ESP =====
 local function createESP(player)
     if player == LocalPlayer then return end
     if not player.Character then return end
 
-    if enemyOnly and not isEnemy(player) then
-        removeESP(player)
-        return
-    end
+    local char = player.Character
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
 
-    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+    removeESP(player)
 
-    -- Highlight
-    if not player.Character:FindFirstChild("NHubHighlight") then
-        local h = Instance.new("Highlight")
-        h.Name = "NHubHighlight"
-        h.FillColor = Color3.fromRGB(255,0,0)
-        h.FillTransparency = 0.5
-        h.Parent = player.Character
-    end
+    local enemy = isEnemy(player)
 
-    -- Billboard
-    if not hrp:FindFirstChild("NHubBillboard") then
-        local bb = Instance.new("BillboardGui")
-        bb.Name = "NHubBillboard"
-        bb.Size = UDim2.new(0,200,0,50)
-        bb.StudsOffset = Vector3.new(0,3,0)
-        bb.AlwaysOnTop = true
-        bb.Parent = hrp
+    -- ===== BOX (Highlight) =====
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "NHubHighlight"
+    highlight.FillTransparency = 0.7
+    highlight.OutlineTransparency = 0
+    highlight.FillColor = enemy and Color3.fromRGB(255,0,0) or Color3.fromRGB(0,150,255)
+    highlight.OutlineColor = highlight.FillColor
+    highlight.Parent = char
 
-        local txt = Instance.new("TextLabel")
-        txt.Size = UDim2.new(1,0,1,0)
-        txt.BackgroundTransparency = 1
-        txt.TextScaled = true
-        txt.TextStrokeTransparency = 0
-        txt.Font = Enum.Font.GothamBold
-        txt.Parent = bb
+    -- ===== Billboard =====
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "NHubBillboard"
+    bb.Size = UDim2.new(0,200,0,60)
+    bb.StudsOffset = Vector3.new(0,3,0)
+    bb.AlwaysOnTop = true
+    bb.Parent = hrp
 
-        espConnections[player] = RunService.RenderStepped:Connect(function()
-            if not espEnabled then return end
-            if not player.Character or not Character then return end
+    -- Name + Distance
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1,0,0.6,0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextScaled = true
+    nameLabel.TextStrokeTransparency = 0
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextColor3 = highlight.FillColor
+    nameLabel.Parent = bb
 
-            local myHRP = Character:FindFirstChild("HumanoidRootPart")
-            local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+    -- Health Bar BG
+    local healthBG = Instance.new("Frame")
+    healthBG.Size = UDim2.new(1,0,0.25,0)
+    healthBG.Position = UDim2.new(0,0,0.65,0)
+    healthBG.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    healthBG.BorderSizePixel = 0
+    healthBG.Parent = bb
 
-            if myHRP and targetHRP then
-                local dist = (myHRP.Position - targetHRP.Position).Magnitude
-                txt.Text = player.Name.." | "..math.floor(dist).."m"
+    -- Health Bar Fill
+    local healthFill = Instance.new("Frame")
+    healthFill.Size = UDim2.new(1,0,1,0)
+    healthFill.BackgroundColor3 = Color3.fromRGB(0,255,0)
+    healthFill.BorderSizePixel = 0
+    healthFill.Parent = healthBG
+
+    -- ===== อัปเดตเรียลไทม์ =====
+    espConnections[player] = RunService.RenderStepped:Connect(function()
+        if not espEnabled then return end
+        if not player.Character or not Character then return end
+
+        local myHRP = Character:FindFirstChild("HumanoidRootPart")
+        local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+        local targetHum = player.Character:FindFirstChildOfClass("Humanoid")
+
+        if myHRP and targetHRP and targetHum then
+            local dist = (myHRP.Position - targetHRP.Position).Magnitude
+            nameLabel.Text = player.Name.." | "..math.floor(dist).."m"
+
+            -- Health %
+            local healthPercent = targetHum.Health / targetHum.MaxHealth
+            healthFill.Size = UDim2.new(healthPercent,0,1,0)
+
+            -- เปลี่ยนสีเลือดตาม %
+            if healthPercent > 0.5 then
+                healthFill.BackgroundColor3 = Color3.fromRGB(0,255,0)
+            elseif healthPercent > 0.25 then
+                healthFill.BackgroundColor3 = Color3.fromRGB(255,170,0)
+            else
+                healthFill.BackgroundColor3 = Color3.fromRGB(255,0,0)
             end
-        end)
-    end
+        end
+    end)
 end
 
--- Toggle ESP
+-- ===== Toggle =====
 VisualTab:CreateToggle({
-    Name = "Enemy ESP (Name + Distance)",
+    Name = "Team ESP PRO",
     CurrentValue = false,
     Callback = function(state)
         espEnabled = state
@@ -340,7 +371,16 @@ VisualTab:CreateToggle({
     end
 })
 
--- รองรับ Player เข้าใหม่
+-- ===== รองรับรีสปอน =====
+for _,player in pairs(Players:GetPlayers()) do
+    player.CharacterAdded:Connect(function()
+        task.wait(1)
+        if espEnabled then
+            createESP(player)
+        end
+    end)
+end
+
 Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function()
         task.wait(1)
@@ -350,15 +390,6 @@ Players.PlayerAdded:Connect(function(player)
     end)
 end)
 
--- รองรับรีสปอน
-for _,player in pairs(Players:GetPlayers()) do
-    player.CharacterAdded:Connect(function()
-        task.wait(1)
-        if espEnabled then
-            createESP(player)
-        end
-    end)
-end
 -- =====================================================
 -- TELEPORT TAB
 -- =====================================================
