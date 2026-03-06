@@ -42,6 +42,7 @@ local TeleportService= game:GetService("TeleportService")
 local RunService     = game:GetService("RunService")
 local VirtualUser    = game:GetService("VirtualUser")
 local HttpService    = game:GetService("HttpService")
+local Lighting       = game:GetService("Lighting")
 
 -- =====================================================
 -- LANGUAGE SYSTEM
@@ -58,12 +59,17 @@ local L = {
 		tab_esp        = "ESP",
 		tab_combat     = "Combat",
 		tab_teleport   = "Teleport",
+		tab_aimbot     = "Shooter",
 		tab_utility    = "Utility",
 		-- Player
 		walkspeed      = "Walk Speed",
 		jumppower      = "Jump Power",
 		infjump        = "Infinite Jump",
 		noclip         = "Noclip",
+		zoomout        = "Unlock Zoom Out",
+		zoomdist       = "Max Zoom Distance",
+		fullbright     = "Fullbright",
+		boostfps       = "Boost FPS",
 		-- ESP
 		esp            = "ESP",
 		esp_enemy      = "Enemy ESP (Red)",
@@ -82,8 +88,17 @@ local L = {
 		spoof_offset   = "Spoof Offset (studs from enemy)",
 		-- Teleport
 		clicktp        = "CTRL + Click TP",
+		-- Aimbot
+		aimbot         = "Aimbot",
+		aimbot_fov     = "FOV Size",
+		aimbot_smooth  = "Smooth (high = slower)",
+		aimbot_head    = "Aim Head (off = Body)",
 		-- Utility
 		rejoin         = "Rejoin Server",
+		hopserver      = "Hop Server",
+		autoexec       = "⚡ Auto Execute (เปิดเกมรันอัตโนมัติ)",
+		autoexec_on    = "ตั้งค่า Auto Execute แล้ว ✅\nรีสตาร์ทเกมเพื่อใช้งาน",
+		autoexec_off   = "ลบ Auto Execute แล้ว 🗑️",
 		antiafk        = "Anti AFK",
 		saveconfig     = "💾 Save Config",
 		resetconfig    = "🔄 Reset Config",
@@ -104,12 +119,17 @@ local L = {
 		tab_esp        = "ESP",
 		tab_combat     = "ต่อสู้",
 		tab_teleport   = "เทเลพอร์ต",
+		tab_aimbot     = "Shooter",
 		tab_utility    = "เครื่องมือ",
 		-- Player
 		walkspeed      = "วิ่งไว",
 		jumppower      = "ความสูงกระโดด",
 		infjump        = "กระโดดไม่จำกัด",
 		noclip         = "ทะลุกำแพง",
+		zoomout        = "ปลดล็อคซูมออก",
+		zoomdist       = "ระยะซูมสูงสุด",
+		fullbright     = "แผนที่สว่าง (Fullbright)",
+		boostfps       = "เพิ่ม FPS",
 		-- ESP
 		esp            = "ESP (มองทะลุ)",
 		esp_enemy      = "ESP ศัตรู (แดง)",
@@ -129,8 +149,17 @@ local L = {
 		spoof_offset   = "ระยะวาปไปตี (studs จากศัตรู)",
 		-- Teleport
 		clicktp        = "CTRL + คลิก เพื่อวาป",
+		-- Aimbot
+		aimbot         = "เล็งศัตรูอัตโนมัติ",
+		aimbot_fov     = "ขนาด FOV",
+		aimbot_smooth  = "ความนุ่มนวล (สูง = ช้า)",
+		aimbot_head    = "เล็งหัว (ปิด = เล็งตัว)",
 		-- Utility
 		rejoin         = "เข้าเซิร์ฟใหม่",
+		hopserver      = "ย้ายเซิร์ฟ",
+		autoexec       = "⚡ Auto Execute (รันอัตโนมัติตอนเปิดเกม)",
+		autoexec_on    = "ตั้งค่า Auto Execute แล้ว ✅\nรีสตาร์ทเกมเพื่อใช้งาน",
+		autoexec_off   = "ลบ Auto Execute แล้ว 🗑️",
 		antiafk        = "กัน AFK",
 		saveconfig     = "💾 บันทึกตั้งค่า",
 		resetconfig    = "🔄 รีเซ็ตตั้งค่า",
@@ -161,6 +190,10 @@ local _raw = {
 	JumpPower       = 50,
 	InfiniteJump    = false,
 	Noclip          = false,
+	ZoomEnabled     = false,
+	ZoomDist        = 200,
+	Fullbright      = false,
+	BoostFPS        = false,
 	ESPEnabled      = true,
 	ClickTP         = false,
 	HitboxSize      = 5,
@@ -176,6 +209,14 @@ local _raw = {
 	SpoofRange      = 3,
 	AutoSkill       = false,
 	SkillDelay      = 10,
+	AimbotEnabled   = false,
+	AimbotFOV       = 120,
+	AimbotSmooth    = 5,
+	AimbotPart      = "Head",
+	RapidFire       = false,
+	RapidFireDelay  = 2,
+	AutoReload      = false,
+	NoReload        = false,
 	Language        = "EN",
 }
 
@@ -235,6 +276,42 @@ local speedEnabled    = speedValue ~= 16
 local speedConnection = nil
 local infJump         = Config.InfiniteJump
 local noclip          = Config.Noclip
+local zoomEnabled     = Config.ZoomEnabled or false
+local zoomDist        = Config.ZoomDist or 200
+local fullbright      = Config.Fullbright or false
+local boostFPS        = Config.BoostFPS or false
+local fullbrightConn  = nil
+
+local function StartFullbright()
+	if fullbrightConn then task.cancel(fullbrightConn) end
+	fullbrightConn = Spawn(function()
+		while fullbright do
+			Lighting.Brightness        = 2
+			Lighting.ClockTime         = 14
+			Lighting.FogEnd            = 100000
+			Lighting.GlobalShadows     = false
+			Lighting.Ambient           = Color3.fromRGB(255,255,255)
+			Lighting.OutdoorAmbient    = Color3.fromRGB(255,255,255)
+			-- ปิด effect ที่ทำให้มืด
+			for _, effect in pairs(Lighting:GetChildren()) do
+				if effect:IsA("BloomEffect") or effect:IsA("ColorCorrectionEffect") or
+				   effect:IsA("DepthOfFieldEffect") then
+					effect.Enabled = false
+				end
+			end
+			task.wait(0.5)
+		end
+	end)
+end
+
+local function StopFullbright()
+	fullbright = false
+	if fullbrightConn then task.cancel(fullbrightConn); fullbrightConn = nil end
+	Lighting.Brightness        = 1
+	Lighting.GlobalShadows     = true
+	Lighting.Ambient           = Color3.fromRGB(70,70,70)
+	Lighting.OutdoorAmbient    = Color3.fromRGB(140,140,140)
+end
 local ESPEnabled = Config.ESPEnabled
 local ESPObjects = {}
 local hitboxEnabled   = Config.HitboxEnabled
@@ -256,6 +333,29 @@ local fastAttackConn    = nil
 local posSpoof        = Config.PosSpoof or false
 local spoofRange      = Config.SpoofRange or 3
 local isSpoofing      = false
+
+-- Aimbot
+local aimbotEnabled   = Config.AimbotEnabled or false
+local aimbotFOV       = Config.AimbotFOV or 120
+local aimbotSmooth    = Config.AimbotSmooth or 5
+local aimbotPart      = Config.AimbotPart or "Head"  -- Head / HumanoidRootPart
+local aimbotConn      = nil
+local fovCircle       = Drawing.new("Circle")
+fovCircle.Thickness   = 1
+fovCircle.Color       = Color3.fromRGB(255, 255, 255)
+fovCircle.Filled      = false
+fovCircle.Visible     = false
+fovCircle.Transparency = 1
+
+-- Shooter
+local rapidFire      = false
+local rapidFireDelay = (Config.RapidFireDelay or 2) / 100
+local rapidFireConn  = nil
+local autoReload     = false
+local autoReloadConn = nil
+local noReload       = false
+local noReloadConn   = nil
+
 local clickTP         = Config.ClickTP
 
 -- =====================================================
@@ -567,6 +667,80 @@ Connect(UIS.JumpRequest, function()
 	end
 end)
 
+-- =====================================================
+-- AIMBOT LOGIC
+-- =====================================================
+
+local function GetAimbotTarget()
+	local bestTarget = nil
+	local bestDist   = aimbotFOV  -- ต้องอยู่ใน FOV circle
+	local screenCenter = Vector2.new(
+		workspace.CurrentCamera.ViewportSize.X / 2,
+		workspace.CurrentCamera.ViewportSize.Y / 2
+	)
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer and plr.Character then
+			local hum  = plr.Character:FindFirstChildOfClass("Humanoid")
+			local part = plr.Character:FindFirstChild(aimbotPart) or plr.Character:FindFirstChild("HumanoidRootPart")
+			if hum and part and hum.Health > 0 then
+				local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(part.Position)
+				if onScreen then
+					local screenPos = Vector2.new(pos.X, pos.Y)
+					local dist = (screenPos - screenCenter).Magnitude
+					if dist < bestDist then
+						bestDist   = dist
+						bestTarget = part
+					end
+				end
+			end
+		end
+	end
+	return bestTarget
+end
+
+local function StartAimbot()
+	if aimbotConn then task.cancel(aimbotConn) end
+	aimbotConn = Spawn(function()
+		while aimbotEnabled do
+			-- FOV Circle
+			local screenCenter = Vector2.new(
+				workspace.CurrentCamera.ViewportSize.X / 2,
+				workspace.CurrentCamera.ViewportSize.Y / 2
+			)
+			fovCircle.Position  = screenCenter
+			fovCircle.Radius    = aimbotFOV
+			fovCircle.Visible   = true
+
+			local target = GetAimbotTarget()
+			if target then
+				local targetPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(target.Position)
+				if onScreen then
+					local screenPos = Vector2.new(targetPos.X, targetPos.Y)
+					-- Smooth aim: เลื่อนกล้องทีละนิด
+					local smooth = math.clamp(aimbotSmooth, 1, 20)
+					local current = Vector2.new(
+						workspace.CurrentCamera.ViewportSize.X / 2,
+						workspace.CurrentCamera.ViewportSize.Y / 2
+					)
+					local delta = (screenPos - current) / smooth
+					-- หมุนกล้องไปหาเป้า
+					local cf = workspace.CurrentCamera.CFrame
+					local targetCF = CFrame.new(cf.Position, target.Position)
+					workspace.CurrentCamera.CFrame = cf:Lerp(targetCF, 1 / smooth)
+				end
+			end
+			task.wait(0.016)  -- ~60fps
+		end
+		fovCircle.Visible = false
+	end)
+end
+
+local function StopAimbot()
+	aimbotEnabled = false
+	fovCircle.Visible = false
+	if aimbotConn then task.cancel(aimbotConn); aimbotConn = nil end
+end
+
 -- ApplyConfig
 local function ApplyConfig(char)
 	if not char then return end
@@ -577,6 +751,21 @@ local function ApplyConfig(char)
 	if speedEnabled then hookWalkSpeed(hum) end
 	hum.UseJumpPower=true; hum.JumpPower=Config.JumpPower; hum.JumpHeight=Config.JumpPower/10
 	infJump=Config.InfiniteJump; noclip=Config.Noclip
+	zoomEnabled=Config.ZoomEnabled or false; zoomDist=Config.ZoomDist or 200
+	if zoomEnabled then LocalPlayer.CameraMaxZoomDistance = zoomDist end
+	fullbright=Config.Fullbright or false
+	if fullbright then StartFullbright() end
+	boostFPS=Config.BoostFPS or false
+	if boostFPS then
+		settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+		for _, effect in pairs(Lighting:GetChildren()) do
+			if effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or
+			   effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") or
+			   effect:IsA("DepthOfFieldEffect") then
+				effect.Enabled = false
+			end
+		end
+	end
 	hitboxEnabled=Config.HitboxEnabled; hitboxSize=Config.HitboxSize
 	blinkEnabled=Config.BlinkEnabled; blinkRange=Config.BlinkRange
 	autoAttack=Config.AutoAttack; autoAttackRange=Config.AutoAttackRange; autoAttackRate=Config.AutoAttackRate
@@ -586,12 +775,97 @@ local function ApplyConfig(char)
 	posSpoof=Config.PosSpoof or false; spoofRange=Config.SpoofRange or 3
 	autoSkill=Config.AutoSkill or false; skillDelay=Config.SkillDelay or 10
 	if autoSkill then StartAutoSkill() end
+	aimbotEnabled=Config.AimbotEnabled or false; aimbotFOV=Config.AimbotFOV or 120
+	aimbotSmooth=Config.AimbotSmooth or 5; aimbotPart=Config.AimbotPart or "Head"
+	if aimbotEnabled then StartAimbot() end
 end
 
 Spawn(function() task.wait(1.5); ApplyConfig(Character) end)
 Connect(LocalPlayer.CharacterAdded, function(char)
 	Character = char; task.wait(1.5); ApplyConfig(char)
 end)
+
+-- =====================================================
+-- SHOOTER LOGIC
+-- =====================================================
+
+local function PressR()
+	pcall(function()
+		sendinput({type="keyboard",keyCode=Enum.KeyCode.R,inputType=Enum.UserInputType.Keyboard,inputState=Enum.UserInputState.Begin})
+		task.wait(0.02)
+		sendinput({type="keyboard",keyCode=Enum.KeyCode.R,inputType=Enum.UserInputType.Keyboard,inputState=Enum.UserInputState.End})
+	end)
+	pcall(function()
+		game:GetService("VirtualInputManager"):SendKeyEvent(true,Enum.KeyCode.R,false,game)
+		task.wait(0.02)
+		game:GetService("VirtualInputManager"):SendKeyEvent(false,Enum.KeyCode.R,false,game)
+	end)
+	pcall(function() keypress(0x52); task.wait(0.02); keyrelease(0x52) end)
+end
+
+local function ClickFire()
+	local sc = Vector2.new(workspace.CurrentCamera.ViewportSize.X/2, workspace.CurrentCamera.ViewportSize.Y/2)
+	VirtualUser:Button1Down(sc, workspace.CurrentCamera.CFrame)
+	task.wait(0.02)
+	VirtualUser:Button1Up(sc, workspace.CurrentCamera.CFrame)
+end
+
+-- Rapid Fire: R + คลิก วนซ้ำ
+local function StartRapidFire()
+	if rapidFireConn then task.cancel(rapidFireConn); rapidFireConn=nil end
+	rapidFireConn = Spawn(function()
+		while rapidFire do
+			if not IsChatFocused() then
+				PressR()
+				task.wait(0.02)
+				ClickFire()
+			end
+			task.wait(rapidFireDelay)
+		end
+	end)
+end
+
+local function StopRapidFire()
+	rapidFire = false
+	if rapidFireConn then task.cancel(rapidFireConn); rapidFireConn=nil end
+end
+
+-- Auto Reload: ยิง → R → ยิง วน
+local function StartAutoReload()
+	if autoReloadConn then task.cancel(autoReloadConn); autoReloadConn=nil end
+	autoReloadConn = Spawn(function()
+		while autoReload do
+			if not IsChatFocused() then
+				ClickFire()
+				task.wait(0.05)
+				PressR()
+			end
+			task.wait(0.1)
+		end
+	end)
+end
+
+local function StopAutoReload()
+	autoReload = false
+	if autoReloadConn then task.cancel(autoReloadConn); autoReloadConn=nil end
+end
+
+-- No Reload: กด R ทันทีทุกครั้งที่คลิก
+local function StartNoReload()
+	if noReloadConn then noReloadConn:Disconnect(); noReloadConn=nil end
+	noReloadConn = Connect(UIS.InputBegan, function(input, gp)
+		if gp or IsChatFocused() then return end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			task.wait(0.03)
+			PressR()
+		end
+	end)
+end
+
+local function StopNoReload()
+	noReload = false
+	if noReloadConn then noReloadConn:Disconnect(); noReloadConn=nil end
+end
 
 -- =====================================================
 -- BUILD UI FUNCTION (สร้างใหม่ได้เมื่อเปลี่ยนภาษา)
@@ -639,6 +913,72 @@ local function BuildUI()
 	PlayerTab:CreateToggle({
 		Name=T("noclip"), CurrentValue=Config.Noclip,
 		Callback=function(v) noclip=v; Config.Noclip=v end
+	})
+
+	PlayerTab:CreateToggle({
+		Name=T("zoomout"), CurrentValue=Config.ZoomEnabled or false,
+		Callback=function(v)
+			zoomEnabled=v; Config.ZoomEnabled=v
+			local cam = LocalPlayer.CameraMaxZoomDistance
+			if v then
+				LocalPlayer.CameraMaxZoomDistance = zoomDist
+			else
+				LocalPlayer.CameraMaxZoomDistance = 400  -- default roblox
+			end
+			Rayfield:Notify({Title=T("zoomout"), Content=v and T("on") or T("off"), Duration=2})
+		end
+	})
+
+	PlayerTab:CreateSlider({
+		Name=T("zoomdist"), Range={50, 1000}, Increment=50, CurrentValue=Config.ZoomDist or 200,
+		Callback=function(v)
+			zoomDist=v; Config.ZoomDist=v
+			if zoomEnabled then
+				LocalPlayer.CameraMaxZoomDistance = v
+			end
+		end
+	})
+
+	PlayerTab:CreateToggle({
+		Name=T("fullbright"), CurrentValue=Config.Fullbright or false,
+		Callback=function(v)
+			fullbright=v; Config.Fullbright=v
+			if v then StartFullbright()
+			else StopFullbright() end
+			Rayfield:Notify({Title=T("fullbright"), Content=v and T("on") or T("off"), Duration=2})
+		end
+	})
+
+	PlayerTab:CreateToggle({
+		Name=T("boostfps"), CurrentValue=Config.BoostFPS or false,
+		Callback=function(v)
+			boostFPS=v; Config.BoostFPS=v
+			if v then
+				-- ลด quality ที่ไม่จำเป็น
+				settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+				workspace.StreamingEnabled = pcall(function()
+					workspace.StreamingEnabled = true
+				end) and true or workspace.StreamingEnabled
+				-- ปิด effect ใน Lighting
+				for _, effect in pairs(Lighting:GetChildren()) do
+					if effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or
+					   effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") or
+					   effect:IsA("DepthOfFieldEffect") then
+						effect.Enabled = false
+					end
+				end
+			else
+				settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+				for _, effect in pairs(Lighting:GetChildren()) do
+					if effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or
+					   effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") or
+					   effect:IsA("DepthOfFieldEffect") then
+						effect.Enabled = true
+					end
+				end
+			end
+			Rayfield:Notify({Title=T("boostfps"), Content=v and T("on") or T("off"), Duration=2})
+		end
 	})
 
 	-- ESP TAB
@@ -745,6 +1085,74 @@ local function BuildUI()
 		Callback=function(v) spoofRange=v; Config.SpoofRange=v end
 	})
 
+	-- AIMBOT TAB (Shooter)
+	local AimbotTab = Window:CreateTab(T("tab_aimbot"), 4483362458)
+
+	AimbotTab:CreateToggle({
+		Name=T("aimbot"), CurrentValue=Config.AimbotEnabled or false,
+		Callback=function(v)
+			aimbotEnabled=v; Config.AimbotEnabled=v
+			if v then StartAimbot(); Rayfield:Notify({Title="Aimbot 🎯", Content=T("on"), Duration=2})
+			else StopAimbot(); Rayfield:Notify({Title="Aimbot", Content=T("off"), Duration=2}) end
+		end
+	})
+
+	AimbotTab:CreateSlider({
+		Name=T("aimbot_fov"), Range={10, 500}, Increment=5, CurrentValue=Config.AimbotFOV or 120,
+		Callback=function(v) aimbotFOV=v; Config.AimbotFOV=v; fovCircle.Radius=v end
+	})
+
+	AimbotTab:CreateSlider({
+		Name=T("aimbot_smooth"), Range={1, 20}, Increment=1, CurrentValue=Config.AimbotSmooth or 5,
+		Callback=function(v) aimbotSmooth=v; Config.AimbotSmooth=v end
+	})
+
+	AimbotTab:CreateToggle({
+		Name=T("aimbot_head"), CurrentValue=(Config.AimbotPart or "Head") == "Head",
+		Callback=function(v)
+			aimbotPart = v and "Head" or "HumanoidRootPart"
+			Config.AimbotPart = aimbotPart
+			Rayfield:Notify({Title="Aimbot Target", Content=v and (Lang=="TH" and "เล็งหัว 🎯" or "Aim: Head 🎯") or (Lang=="TH" and "เล็งตัว" or "Aim: Body"), Duration=2})
+		end
+	})
+
+	-- Shooter features
+	AimbotTab:CreateToggle({
+		Name=Lang=="TH" and "Rapid Fire [R+ยิงรัว]" or "Rapid Fire [R+Shoot Spam]",
+		CurrentValue=Config.RapidFire or false,
+		Callback=function(v)
+			rapidFire=v; Config.RapidFire=v
+			if v then StartRapidFire(); Rayfield:Notify({Title="Rapid Fire 🔫", Content=T("on"), Duration=2})
+			else StopRapidFire(); Rayfield:Notify({Title="Rapid Fire", Content=T("off"), Duration=2}) end
+		end
+	})
+
+	AimbotTab:CreateSlider({
+		Name=Lang=="TH" and "Rapid Fire Delay (ต่ำ=เร็ว)" or "Rapid Fire Delay (low=faster)",
+		Range={1,20}, Increment=1, CurrentValue=Config.RapidFireDelay or 2,
+		Callback=function(v) rapidFireDelay=v/100; Config.RapidFireDelay=v end
+	})
+
+	AimbotTab:CreateToggle({
+		Name=Lang=="TH" and "Auto Reload [ยิง→R→ยิงวน]" or "Auto Reload [Shoot→R→Shoot Loop]",
+		CurrentValue=Config.AutoReload or false,
+		Callback=function(v)
+			autoReload=v; Config.AutoReload=v
+			if v then StartAutoReload(); Rayfield:Notify({Title="Auto Reload 🔄", Content=T("on"), Duration=2})
+			else StopAutoReload(); Rayfield:Notify({Title="Auto Reload", Content=T("off"), Duration=2}) end
+		end
+	})
+
+	AimbotTab:CreateToggle({
+		Name=Lang=="TH" and "No Reload [กด R อัตโนมัติหลังยิง]" or "No Reload [Auto R after shoot]",
+		CurrentValue=Config.NoReload or false,
+		Callback=function(v)
+			noReload=v; Config.NoReload=v
+			if v then StartNoReload(); Rayfield:Notify({Title="No Reload ⚡", Content=T("on"), Duration=2})
+			else StopNoReload(); Rayfield:Notify({Title="No Reload", Content=T("off"), Duration=2}) end
+		end
+	})
+
 	-- TELEPORT TAB
 	local TeleportTab = Window:CreateTab(T("tab_teleport"), 4483362458)
 
@@ -759,6 +1167,34 @@ local function BuildUI()
 	UtilityTab:CreateButton({
 		Name=T("rejoin"),
 		Callback=function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end
+	})
+
+	UtilityTab:CreateButton({
+		Name=T("hopserver"),
+		Callback=function()
+			Rayfield:Notify({Title=T("hopserver"), Content=Lang=="TH" and "กำลังหาเซิร์ฟ..." or "Finding server...", Duration=3})
+			task.spawn(function()
+				local HttpService = game:GetService("HttpService")
+				local placeId = game.PlaceId
+				local currentJobId = game.JobId
+				local url = "https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"
+				local ok, result = pcall(function()
+					return HttpService:JSONDecode(game:HttpGet(url))
+				end)
+				if not ok or not result or not result.data then
+					Rayfield:Notify({Title=T("hopserver"), Content=Lang=="TH" and "หาเซิร์ฟไม่ได้ ❌" or "Failed to find server ❌", Duration=3})
+					return
+				end
+				for _, server in pairs(result.data) do
+					if server.id ~= currentJobId and server.playing and server.playing < server.maxPlayers then
+						Rayfield:Notify({Title=T("hopserver"), Content=Lang=="TH" and "เจอแล้ว กำลังย้าย... 🔄" or "Found! Hopping... 🔄", Duration=3})
+						TeleportService:TeleportToPlaceInstance(placeId, server.id, LocalPlayer)
+						return
+					end
+				end
+				Rayfield:Notify({Title=T("hopserver"), Content=Lang=="TH" and "ไม่เจอเซิร์ฟว่าง ❌" or "No available server ❌", Duration=3})
+			end)
+		end
 	})
 
 	UtilityTab:CreateButton({
