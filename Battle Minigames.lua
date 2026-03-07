@@ -58,8 +58,9 @@ local L = {
 		tab_player     = "Player",
 		tab_esp        = "ESP",
 		tab_combat     = "Combat",
+		tab_aimbot     = "Aimbot",
+		tab_shooter    = "Shooter",
 		tab_teleport   = "Teleport",
-		tab_aimbot     = "Shooter",
 		tab_utility    = "Utility",
 		-- Player
 		walkspeed      = "Walk Speed",
@@ -93,6 +94,12 @@ local L = {
 		aimbot_fov     = "FOV Size",
 		aimbot_smooth  = "Smooth (high = slower)",
 		aimbot_head    = "Aim Head (off = Body)",
+		-- Shooter
+		gun_modifier   = "Gun Modifier (Auto Apply)",
+		gun_damage     = "Damage",
+		gun_ammo       = "Ammo per Mag",
+		gun_reload     = "Reload Speed",
+		gun_firerate   = "Fire Rate (low = fast)",
 		-- Utility
 		rejoin         = "Rejoin Server",
 		hopserver      = "Hop Server",
@@ -118,8 +125,9 @@ local L = {
 		tab_player     = "ผู้เล่น",
 		tab_esp        = "ESP",
 		tab_combat     = "ต่อสู้",
+		tab_aimbot     = "เล็งศัตรู",
+		tab_shooter    = "ปืน",
 		tab_teleport   = "เทเลพอร์ต",
-		tab_aimbot     = "Shooter",
 		tab_utility    = "เครื่องมือ",
 		-- Player
 		walkspeed      = "วิ่งไว",
@@ -154,6 +162,12 @@ local L = {
 		aimbot_fov     = "ขนาด FOV",
 		aimbot_smooth  = "ความนุ่มนวล (สูง = ช้า)",
 		aimbot_head    = "เล็งหัว (ปิด = เล็งตัว)",
+		-- Shooter
+		gun_modifier   = "ปรับปืนอัตโนมัติ (Auto Apply)",
+		gun_damage     = "ดาเมจ",
+		gun_ammo       = "กระสุนต่อแม็ก",
+		gun_reload     = "ความเร็วรีโหลด",
+		gun_firerate   = "อัตราการยิง (ต่ำ = เร็ว)",
 		-- Utility
 		rejoin         = "เข้าเซิร์ฟใหม่",
 		hopserver      = "ย้ายเซิร์ฟ",
@@ -194,6 +208,11 @@ local _raw = {
 	ZoomDist        = 200,
 	Fullbright      = false,
 	BoostFPS        = false,
+	GunModEnabled   = false,
+	GunDamage       = 1000,
+	GunAmmo         = 99,
+	GunReload       = 0.01,
+	GunFirerate     = 0.01,
 	ESPEnabled      = true,
 	ClickTP         = false,
 	HitboxSize      = 5,
@@ -213,10 +232,6 @@ local _raw = {
 	AimbotFOV       = 120,
 	AimbotSmooth    = 5,
 	AimbotPart      = "Head",
-	RapidFire       = false,
-	RapidFireDelay  = 2,
-	AutoReload      = false,
-	NoReload        = false,
 	Language        = "EN",
 }
 
@@ -282,6 +297,13 @@ local fullbright      = Config.Fullbright or false
 local boostFPS        = Config.BoostFPS or false
 local fullbrightConn  = nil
 
+-- Gun Modifier
+local gunModEnabled   = Config.GunModEnabled or false
+local gunDamage       = Config.GunDamage or 1000
+local gunAmmo         = Config.GunAmmo or 99
+local gunReload       = Config.GunReload or 0.01
+local gunFirerate     = Config.GunFirerate or 0.01
+
 local function StartFullbright()
 	if fullbrightConn then task.cancel(fullbrightConn) end
 	fullbrightConn = Spawn(function()
@@ -346,15 +368,6 @@ fovCircle.Color       = Color3.fromRGB(255, 255, 255)
 fovCircle.Filled      = false
 fovCircle.Visible     = false
 fovCircle.Transparency = 1
-
--- Shooter
-local rapidFire      = false
-local rapidFireDelay = (Config.RapidFireDelay or 2) / 100
-local rapidFireConn  = nil
-local autoReload     = false
-local autoReloadConn = nil
-local noReload       = false
-local noReloadConn   = nil
 
 local clickTP         = Config.ClickTP
 
@@ -778,11 +791,16 @@ local function ApplyConfig(char)
 	aimbotEnabled=Config.AimbotEnabled or false; aimbotFOV=Config.AimbotFOV or 120
 	aimbotSmooth=Config.AimbotSmooth or 5; aimbotPart=Config.AimbotPart or "Head"
 	if aimbotEnabled then StartAimbot() end
+	gunModEnabled=Config.GunModEnabled or false
+	gunDamage=Config.GunDamage or 1000; gunAmmo=Config.GunAmmo or 99
+	gunReload=Config.GunReload or 0.01; gunFirerate=Config.GunFirerate or 0.01
+	if gunModEnabled then StartGunMod(char) end
 end
 
 Spawn(function() task.wait(1.5); ApplyConfig(Character) end)
 Connect(LocalPlayer.CharacterAdded, function(char)
 	Character = char; task.wait(1.5); ApplyConfig(char)
+	if gunModEnabled then StartGunMod(char) end
 end)
 
 -- =====================================================
@@ -810,61 +828,50 @@ local function ClickFire()
 	VirtualUser:Button1Up(sc, workspace.CurrentCamera.CFrame)
 end
 
--- Rapid Fire: R + คลิก วนซ้ำ
-local function StartRapidFire()
-	if rapidFireConn then task.cancel(rapidFireConn); rapidFireConn=nil end
-	rapidFireConn = Spawn(function()
-		while rapidFire do
-			if not IsChatFocused() then
-				PressR()
-				task.wait(0.02)
-				ClickFire()
-			end
-			task.wait(rapidFireDelay)
+-- =====================================================
+-- GUN MODIFIER LOGIC
+-- =====================================================
+
+local gunModConn     = nil
+local gunCharConn    = nil
+
+local function ApplyGunMod(tool)
+	if not gunModEnabled then return end
+	local config = tool:FindFirstChild("Configuration")
+	if not config then return end
+	local damage   = config:FindFirstChild("Damage")
+	local magSize  = config:FindFirstChild("MagSize")
+	local reload   = config:FindFirstChild("ReloadTime")
+	local ammo     = config:FindFirstChild("AmmoReserve")
+	local firerate = config:FindFirstChild("Firerate")
+	if damage   then damage.Value   = gunDamage   end
+	if magSize  then magSize.Value  = gunAmmo     end
+	if reload   then reload.Value   = gunReload   end
+	if ammo     then ammo.Value     = 1e+95       end
+	if firerate then firerate.Value = gunFirerate end
+	for _, v in pairs(tool:GetDescendants()) do
+		if v:IsA("NumberValue") and v.Name == "Speed" then
+			v.Value = 50
 		end
+	end
+end
+
+local function StartGunMod(char)
+	char = char or Character
+	if not char then return end
+	-- apply ทุก tool ที่ถืออยู่แล้ว
+	for _, child in pairs(char:GetChildren()) do
+		if child:IsA("Tool") then ApplyGunMod(child) end
+	end
+	-- auto apply ตอนหยิบ tool ใหม่
+	if gunModConn then gunModConn:Disconnect() end
+	gunModConn = Connect(char.ChildAdded, function(child)
+		if child:IsA("Tool") then task.wait(0.1); ApplyGunMod(child) end
 	end)
 end
 
-local function StopRapidFire()
-	rapidFire = false
-	if rapidFireConn then task.cancel(rapidFireConn); rapidFireConn=nil end
-end
-
--- Auto Reload: ยิง → R → ยิง วน
-local function StartAutoReload()
-	if autoReloadConn then task.cancel(autoReloadConn); autoReloadConn=nil end
-	autoReloadConn = Spawn(function()
-		while autoReload do
-			if not IsChatFocused() then
-				ClickFire()
-				task.wait(0.05)
-				PressR()
-			end
-			task.wait(0.1)
-		end
-	end)
-end
-
-local function StopAutoReload()
-	autoReload = false
-	if autoReloadConn then task.cancel(autoReloadConn); autoReloadConn=nil end
-end
-
--- No Reload: กด R ทันทีทุกครั้งที่คลิก
-local function StartNoReload()
-	if noReloadConn then noReloadConn:Disconnect(); noReloadConn=nil end
-	noReloadConn = Connect(UIS.InputBegan, function(input, gp)
-		if gp or IsChatFocused() then return end
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			task.wait(0.03)
-			PressR()
-		end
-	end)
-end
-
-local function StopNoReload()
-	noReload = false
-	if noReloadConn then noReloadConn:Disconnect(); noReloadConn=nil end
+local function StopGunMod()
+	if gunModConn then gunModConn:Disconnect(); gunModConn = nil end
 end
 
 -- =====================================================
@@ -1116,41 +1123,36 @@ local function BuildUI()
 		end
 	})
 
-	-- Shooter features
-	AimbotTab:CreateToggle({
-		Name=Lang=="TH" and "Rapid Fire [R+ยิงรัว]" or "Rapid Fire [R+Shoot Spam]",
-		CurrentValue=Config.RapidFire or false,
+	-- SHOOTER TAB
+	local ShooterTab = Window:CreateTab(T("tab_shooter"), 4483362458)
+
+	ShooterTab:CreateToggle({
+		Name=T("gun_modifier"), CurrentValue=Config.GunModEnabled or false,
 		Callback=function(v)
-			rapidFire=v; Config.RapidFire=v
-			if v then StartRapidFire(); Rayfield:Notify({Title="Rapid Fire 🔫", Content=T("on"), Duration=2})
-			else StopRapidFire(); Rayfield:Notify({Title="Rapid Fire", Content=T("off"), Duration=2}) end
+			gunModEnabled=v; Config.GunModEnabled=v
+			if v then
+				StartGunMod()
+				Rayfield:Notify({Title="Gun Modifier 🔫", Content=T("on"), Duration=2})
+			else
+				StopGunMod()
+				Rayfield:Notify({Title="Gun Modifier", Content=T("off"), Duration=2})
+			end
 		end
 	})
 
-	AimbotTab:CreateSlider({
-		Name=Lang=="TH" and "Rapid Fire Delay (ต่ำ=เร็ว)" or "Rapid Fire Delay (low=faster)",
-		Range={1,20}, Increment=1, CurrentValue=Config.RapidFireDelay or 2,
-		Callback=function(v) rapidFireDelay=v/100; Config.RapidFireDelay=v end
+	ShooterTab:CreateSlider({
+		Name=T("gun_damage"), Range={1, 9999}, Increment=50, CurrentValue=Config.GunDamage or 1000,
+		Callback=function(v) gunDamage=v; Config.GunDamage=v end
 	})
 
-	AimbotTab:CreateToggle({
-		Name=Lang=="TH" and "Auto Reload [ยิง→R→ยิงวน]" or "Auto Reload [Shoot→R→Shoot Loop]",
-		CurrentValue=Config.AutoReload or false,
-		Callback=function(v)
-			autoReload=v; Config.AutoReload=v
-			if v then StartAutoReload(); Rayfield:Notify({Title="Auto Reload 🔄", Content=T("on"), Duration=2})
-			else StopAutoReload(); Rayfield:Notify({Title="Auto Reload", Content=T("off"), Duration=2}) end
-		end
+	ShooterTab:CreateSlider({
+		Name=T("gun_reload"), Range={1, 100}, Increment=1, CurrentValue=(Config.GunReload or 0.01)*100,
+		Callback=function(v) gunReload=v/100; Config.GunReload=v/100 end
 	})
 
-	AimbotTab:CreateToggle({
-		Name=Lang=="TH" and "No Reload [กด R อัตโนมัติหลังยิง]" or "No Reload [Auto R after shoot]",
-		CurrentValue=Config.NoReload or false,
-		Callback=function(v)
-			noReload=v; Config.NoReload=v
-			if v then StartNoReload(); Rayfield:Notify({Title="No Reload ⚡", Content=T("on"), Duration=2})
-			else StopNoReload(); Rayfield:Notify({Title="No Reload", Content=T("off"), Duration=2}) end
-		end
+	ShooterTab:CreateSlider({
+		Name=T("gun_firerate"), Range={1, 100}, Increment=1, CurrentValue=(Config.GunFirerate or 0.01)*100,
+		Callback=function(v) gunFirerate=v/100; Config.GunFirerate=v/100 end
 	})
 
 	-- TELEPORT TAB
